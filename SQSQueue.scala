@@ -1,4 +1,4 @@
-package  com.fortytwo.franz
+package  com.kifi.franz
 
 import play.api.libs.json.JsValue
 import play.api.libs.iteratee.Enumerator

@@ -1,4 +1,4 @@
-package com.fortytwo.franz
+package com.kifi.franz
 
 import com.amazonaws.services.sqs.AmazonSQS
 import com.amazonaws.services.sqs.model.{SendMessageRequest, GetQueueUrlRequest, ReceiveMessageRequest, DeleteMessageRequest}

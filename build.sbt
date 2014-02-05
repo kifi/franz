@@ -1,3 +1,4 @@
+organization := "fortytwo.franz"
 
 name := "franz"
 
@@ -14,3 +15,5 @@ libraryDependencies += "com.amazonaws" % "aws-java-sdk" % "1.6.12"
 libraryDependencies += "com.typesafe.play" %% "play-json" % "2.2.1"
 
 libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.2.1"
+
+publishTo := Some(Resolver.file("file",  new File( "releases/" )) )

@@ -1,4 +1,4 @@
-package stkem.franz
+package com.fortytwo.franz
 
 
 trait SQSClient {

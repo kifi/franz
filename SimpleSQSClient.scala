@@ -1,4 +1,4 @@
-package com.fortytwo.franz
+package com.kifi.franz
 
 import com.amazonaws.auth.{AWSCredentialsProvider, AWSCredentials}
 import com.amazonaws.regions.{Regions, Region}

@@ -1,4 +1,4 @@
-package com.fortytwo.franz
+package com.kifi.franz
 
 
 trait SQSClient {

@@ -1,4 +1,10 @@
 
+name := "franz"
+
+version := "0.1"
+
+scalaVersion := "2.10.3"
+
 resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 
 libraryDependencies += "org.scalatest" % "scalatest_2.10" % "1.9.1" % "test"

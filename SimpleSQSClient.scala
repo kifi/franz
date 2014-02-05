@@ -1,4 +1,4 @@
-package stkem.franz
+package com.fortytwo.franz
 
 import com.amazonaws.auth.{AWSCredentialsProvider, AWSCredentials}
 import com.amazonaws.regions.{Regions, Region}

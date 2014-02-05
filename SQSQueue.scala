@@ -1,4 +1,4 @@
-package stkem.franz
+package  com.fortytwo.franz
 
 import play.api.libs.json.JsValue
 import play.api.libs.iteratee.Enumerator

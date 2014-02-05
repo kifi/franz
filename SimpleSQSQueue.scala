@@ -1,4 +1,4 @@
-package stkem.franz
+package com.fortytwo.franz
 
 import com.amazonaws.services.sqs.AmazonSQS
 import com.amazonaws.services.sqs.model.{SendMessageRequest, GetQueueUrlRequest, ReceiveMessageRequest, DeleteMessageRequest}

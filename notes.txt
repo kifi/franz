@@ -1,8 +1,0 @@
-
-refactor:
--read and write functionality for the queue in seperate traits (with one that combines both)
--Implementation trait for eveything but send and nextStringBatchWithLock
--Subclass for Json (with consistent names, i.e. no more type in method names)
--send takes object with a source trait that can be subclassed for different message types
--above object also has payload (or maybe LargeMessage sub trait that handles S3 storage trnsparently and only when needed?)
--Use AWS async client (with AsyncHandler, not using the returned future)

@@ -1,12 +1,20 @@
 package com.kifi.franz
 
-import com.amazonaws.services.sqs.AmazonSQS
-import com.amazonaws.services.sqs.model.{SendMessageRequest, GetQueueUrlRequest, ReceiveMessageRequest, DeleteMessageRequest}
+import com.amazonaws.services.sqs.AmazonSQSAsync
+import com.amazonaws.services.sqs.model.{
+  SendMessageRequest,
+  GetQueueUrlRequest,
+  ReceiveMessageRequest,
+  DeleteMessageRequest,
+  SendMessageResult,
+  ReceiveMessageResult
+}
+import com.amazonaws.handlers.AsyncHandler
 
 import play.api.libs.json.{JsValue, Json}
 import play.api.libs.iteratee.Enumerator
 
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.{Future, ExecutionContext, Promise}
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import scala.collection.JavaConverters._
 
@@ -15,37 +23,48 @@ import scala.collection.JavaConverters._
 
 
 
-class SimpleSQSQueue(sqs: AmazonSQS, queue: QueueName) extends SQSQueue {
+class SimpleSQSQueue(sqs: AmazonSQSAsync, queue: QueueName) extends SQSQueue {
 
   val queueUrl: String = sqs.getQueueUrl(new GetQueueUrlRequest(queue.name)).getQueueUrl
 
-  def send(msg: String)(implicit ec: ExecutionContext): Future[MessageId] = Future {
+  def send(msg: String)(implicit ec: ExecutionContext): Future[MessageId] = {
     val request = new SendMessageRequest
     request.setMessageBody(msg)
     request.setQueueUrl(queueUrl)
-    MessageId(sqs.sendMessage(request).getMessageId)
+    val p = Promise[MessageId]
+    sqs.sendMessageAsync(request, new AsyncHandler[SendMessageRequest,SendMessageResult]{
+      def onError(exception: Exception) = p.failure(exception)
+      def onSuccess(req: SendMessageRequest, res: SendMessageResult) = p.success(MessageId(res.getMessageId))
+    })
+    p.future
   }
 
   def send(msg: JsValue)(implicit ec: ExecutionContext): Future[MessageId] = send(Json.stringify(msg))
 
 
-  def nextStringBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSStringMessage]] = Future {
+  def nextStringBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSStringMessage]] = {
     val request = new ReceiveMessageRequest
     request.setMaxNumberOfMessages(1)
     request.setVisibilityTimeout(lockTimeout.toSeconds.toInt)
     request.setWaitTimeSeconds(86400)
     request.setQueueUrl(queueUrl)
-    val response = sqs.receiveMessage(request)
-    val rawMessages = response.getMessages()
-    if (rawMessages.isEmpty) throw QueueReadTimeoutException
-    rawMessages.asScala.map { rawMessage =>
-      SQSStringMessage(rawMessage.getBody(), {() =>
-        val request = new DeleteMessageRequest
-        request.setQueueUrl(queueUrl)
-        request.setReceiptHandle(rawMessage.getReceiptHandle)
-        sqs.deleteMessage(request)
-      }, rawMessage.getAttributes().asScala.toMap)
-    }
+    val p = Promise[Seq[SQSStringMessage]]
+    sqs.receiveMessageAsync(request, new AsyncHandler[ReceiveMessageRequest, ReceiveMessageResult]{
+      def onError(exception: Exception) = p.failure(exception)
+      def onSuccess(req: ReceiveMessageRequest, response: ReceiveMessageResult) = {
+        val rawMessages = response.getMessages()
+        if (rawMessages.isEmpty) throw QueueReadTimeoutException
+        p.success(rawMessages.asScala.map { rawMessage =>
+          SQSStringMessage(rawMessage.getBody(), {() =>
+            val request = new DeleteMessageRequest
+            request.setQueueUrl(queueUrl)
+            request.setReceiptHandle(rawMessage.getReceiptHandle)
+            sqs.deleteMessageAsync(request)
+          }, rawMessage.getAttributes().asScala.toMap)
+        })
+      }
+    })
+    p.future
   }
 
   def nextStringBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSStringMessage]] = nextStringBatchWithLock(maxBatchSize, new FiniteDuration(0, SECONDS))

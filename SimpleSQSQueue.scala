@@ -44,7 +44,7 @@ class SimpleSQSQueue(sqs: AmazonSQS, queue: QueueName) extends SQSQueue {
         request.setQueueUrl(queueUrl)
         request.setReceiptHandle(rawMessage.getReceiptHandle)
         sqs.deleteMessage(request)
-      })
+      }, rawMessage.getAttributes().asScala.toMap)
     }
   }
 
@@ -58,7 +58,7 @@ class SimpleSQSQueue(sqs: AmazonSQS, queue: QueueName) extends SQSQueue {
   def nextJsonBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSJsonMessage]] = {
     nextStringBatchWithLock(maxBatchSize, lockTimeout).map{ stringMessageSeq =>
       stringMessageSeq.map{ stringMessage =>
-        SQSJsonMessage(Json.parse(stringMessage.body), stringMessage.consume)
+        SQSJsonMessage(Json.parse(stringMessage.body), stringMessage.consume, stringMessage.attributes)
       }
     }
   }

@@ -57,6 +57,7 @@ def nextJsonBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implic
 ```
 
 The returned ```SQS*Message``` objects have one field ```body```  - which is either a ```String``` or ```play.api.libs.json.JsValue``` depending on the type - and one method ```consume : () => Unit``` which deletes the message from the queue (and thus prevents others from reading it).
+Additionally, there is a ```attibutes``` filed that let's you access the raw attributes of the underlying ```com.amazonaws.services.sqs.model.Message```.
  
 The ```*WithLock``` methods lock (or rather, hide) the retrieved message(s) in the queue so that no other call will retrieve them during the lock timeout. You need to call ```consume``` on the message before the timeout expires in order to permanently remove it form the queue.
 

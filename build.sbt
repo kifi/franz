@@ -1,7 +1,8 @@
+organization := "fortytwo.franz"
 
 name := "franz"
 
-version := "0.1.0"
+version := "0.1.1"
 
 scalaVersion := "2.10.3"
 
@@ -14,3 +15,5 @@ libraryDependencies += "com.amazonaws" % "aws-java-sdk" % "1.6.12"
 libraryDependencies += "com.typesafe.play" %% "play-json" % "2.2.1"
 
 libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.2.1"
+
+publishTo := Some(Resolver.file("file",  new File( "releases/" )) )

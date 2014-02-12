@@ -16,10 +16,11 @@ case class MessageId(id: String)
 
 
 sealed trait SQSMessage {
+  val attributes: Map[String,String]
   val consume: () => Unit
 }
-case class SQSStringMessage(body: String, consume: () => Unit) extends SQSMessage
-case class SQSJsonMessage(body: JsValue, consume: () => Unit) extends SQSMessage
+case class SQSStringMessage(body: String, consume: () => Unit, attributes: Map[String, String] = Map.empty) extends SQSMessage
+case class SQSJsonMessage(body: JsValue, consume: () => Unit, attributes: Map[String, String] = Map.empty) extends SQSMessage
 
 
 

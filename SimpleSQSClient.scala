@@ -2,12 +2,12 @@ package com.kifi.franz
 
 import com.amazonaws.auth.{AWSCredentialsProvider, AWSCredentials}
 import com.amazonaws.regions.{Regions, Region}
-import com.amazonaws.services.sqs.AmazonSQSClient
+import com.amazonaws.services.sqs.AmazonSQSAsyncClient
 
 
 class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Regions) extends SQSClient {
 
-  val sqs = new AmazonSQSClient(credentialProvider)
+  val sqs = new AmazonSQSAsyncClient(credentialProvider)
   sqs.setRegion(Region.getRegion(region))
 
   def apply(queue: QueueName) : SQSQueue = {

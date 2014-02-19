@@ -10,8 +10,16 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
   val sqs = new AmazonSQSAsyncClient(credentialProvider)
   sqs.setRegion(Region.getRegion(region))
 
-  def apply(queue: QueueName) : SQSQueue = {
+  def apply(queue: QueueName): SQSQueue = {
     new SimpleSQSQueue(sqs, queue)
+  }
+
+  def simple(queue: QueueName): SQSQueue = {
+    new SimpleSQSQueue(sqs, queue)
+  }
+
+  def formatted[T](queue: QueueName): FormattedSQSQueue[T] = {
+    new SimpleFormattedSQSQueue[T](simple(queue))
   }
 
 }

@@ -24,11 +24,14 @@ val sqs = SimpleSQSClient(<your aws access key>, <your aws secret key>, Regions.
 Now that we have an instance of ```SQSClient``` we can get ourselves an instance of ```SQSQueue``` like so
 
 ```scala
-val queue = sqs(QueueName(<your queue name>))
+val queue = sqs.simple(QueueName(<your queue name>))
 ```
 
 
-#Sending
+#SQSQueue 
+
+
+##Sending
 ```SQSQueue``` provides two methods for sending messages:
 
 ```scala
@@ -39,7 +42,7 @@ def send(msg: play.api.libs.json.JsValue)(implicit ec: ExecutionContext): Future
 There is no current use for the returned ```MessageId```, but you can use the success of the Future as a send confimation.
 
 
-#Receiving
+##Receiving
 
 ###Direct
 ```SQSQueue``` provides several methods for getting the next message in the queue
@@ -56,8 +59,12 @@ def nextJsonBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[
 def nextJsonBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSJsonMessage]]
 ```
 
-The returned ```SQS*Message``` objects have one field ```body```  - which is either a ```String``` or ```play.api.libs.json.JsValue``` depending on the type - and one method ```consume : () => Unit``` which deletes the message from the queue (and thus prevents others from reading it).
-Additionally, there is a ```attibutes``` filed that let's you access the raw attributes of the underlying ```com.amazonaws.services.sqs.model.Message```.
+The returned ```SQS*Message``` object are instances of ```SQSMessage[String]``` and ```SQSMessage[play.api.libs.json.JsValue]``` respectively. ```SQSMessage[T]``` has the fields
+```scala
+val body: T //actual message payload
+val attributes: Map[String,String] //raw attributes from com.amazonaws.services.sqs.model.Message
+val consume: () => Unit //deletes the message from the queue
+```
  
 The ```*WithLock``` methods lock (or rather, hide) the retrieved message(s) in the queue so that no other call will retrieve them during the lock timeout. You need to call ```consume``` on the message before the timeout expires in order to permanently remove it form the queue.
 
@@ -77,6 +84,21 @@ def jsonEnumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionCo
 ```
 
 The semantics of retrievel and locking are identical to those of the ```next*``` methods.
+
+#FormattedSQSQueue
+In addition to ```SQSQueue``` __Franz__ also has a ```FormattedSQSQueue[T]```, which has the signature 
+
+```scala
+def send(msg: T)(implicit ec: ExecutionContext, f: Writes[T]): Future[MessageId]
+def next(implicit ec: ExecutionContext, f: Reads[T]): Future[SQSMessage[T]]
+def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[SQSMessage[T]]
+def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext, f: Reads[T]): Future[Seq[SQSMessage[T]]]
+def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[Seq[SQSMessage[T]]]
+def enumerator(implicit ec: ExecutionContext, f: Reads[T]): Enumerator[SQSMessage[T]]
+def enumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Enumerator[SQSMessage[T]]
+``` 
+
+The ```Reads[T]``` and ```Writes[T]``` are from ```play.api.libs.json``` and this basically allows you to have a queue for any type with a play style implicit json formatter. The semantics of the methods here are identical to the ```*Json*``` methods on ```SQSQueue```, except that serialization/deserilization is taken care of for you.
 
 
 #Limitations

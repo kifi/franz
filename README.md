@@ -48,13 +48,13 @@ There is no current use for the returned ```MessageId```, but you can use the su
 ```SQSQueue``` provides several methods for getting the next message in the queue
 
 ```scala
-def nextString(implicit ec: ExecutionContext): Future[SQSStringMessage]
-def nextStringWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[SQSStringMessage]
+def nextString(implicit ec: ExecutionContext): Future[Option[SQSStringMessage]]
+def nextStringWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSStringMessage]]
 def nextStringBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSStringMessage]]
 def nextStringBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSStringMessage]]
 
-def nextJson(implicit ec: ExecutionContext): Future[SQSJsonMessage]
-def nextJsonWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[SQSJsonMessage]
+def nextJson(implicit ec: ExecutionContext): Future[Option[SQSJsonMessage]]
+def nextJsonWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSJsonMessage]]
 def nextJsonBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSJsonMessage]]
 def nextJsonBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSJsonMessage]]
 ```
@@ -70,8 +70,7 @@ The ```*WithLock``` methods lock (or rather, hide) the retrieved message(s) in t
 
 If the lock expires the message will again be available for retrieval, which is useful e.g. in case of an error when cosume was never called.
 
-
-A ```QueueReadTimeoutException``` is thrown if a request is pending for a very long time (~24h, currently).
+A call to retrieve a message (batch) will long poll for 10 seconds. If there is nothing to fetch an empty sequence or a ```None``` will be returned, depending on the method.
 
 ###Iteratees
 For the more functionally inclined ```SQSQueue``` also provides enumerators to be used with your favorite Iteratee
@@ -90,8 +89,8 @@ In addition to ```SQSQueue``` __Franz__ also has a ```FormattedSQSQueue[T]```, w
 
 ```scala
 def send(msg: T)(implicit ec: ExecutionContext, f: Writes[T]): Future[MessageId]
-def next(implicit ec: ExecutionContext, f: Reads[T]): Future[SQSMessage[T]]
-def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[SQSMessage[T]]
+def next(implicit ec: ExecutionContext, f: Reads[T]): Future[Option[SQSMessage[T]]]
+def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[Option[SQSMessage[T]]]
 def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext, f: Reads[T]): Future[Seq[SQSMessage[T]]]
 def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[Seq[SQSMessage[T]]]
 def enumerator(implicit ec: ExecutionContext, f: Reads[T]): Enumerator[SQSMessage[T]]

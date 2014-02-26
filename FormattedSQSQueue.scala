@@ -12,8 +12,8 @@ import scala.concurrent.duration.{FiniteDuration, SECONDS}
 trait FormattedSQSQueue[T]  {
   def send(msg: T)(implicit ec: ExecutionContext, f: Writes[T]): Future[MessageId]
 
-  def next(implicit ec: ExecutionContext, f: Reads[T]): Future[SQSMessage[T]]
-  def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[SQSMessage[T]]
+  def next(implicit ec: ExecutionContext, f: Reads[T]): Future[Option[SQSMessage[T]]]
+  def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[Option[SQSMessage[T]]]
   def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext, f: Reads[T]): Future[Seq[SQSMessage[T]]]
   def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[Seq[SQSMessage[T]]]
 
@@ -26,9 +26,9 @@ class SimpleFormattedSQSQueue[T](baseQueue: SQSQueue) extends FormattedSQSQueue[
 
   def send(msg: T)(implicit ec: ExecutionContext, f: Writes[T]): Future[MessageId] = baseQueue.send(Json.toJson(msg))
 
-  def next(implicit ec: ExecutionContext, f: Reads[T]): Future[SQSMessage[T]] = nextBatchWithLock(1, new FiniteDuration(0, SECONDS)).map(_.head)
+  def next(implicit ec: ExecutionContext, f: Reads[T]): Future[Option[SQSMessage[T]]] = nextBatchWithLock(1, new FiniteDuration(0, SECONDS)).map(_.headOption)
 
-  def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[SQSMessage[T]] = nextBatchWithLock(1, lockTimeout).map(_.head)
+  def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[Option[SQSMessage[T]]] = nextBatchWithLock(1, lockTimeout).map(_.headOption)
 
   def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext, f: Reads[T]): Future[Seq[SQSMessage[T]]] = nextBatchWithLock(1, new FiniteDuration(0, SECONDS))
 
@@ -43,10 +43,10 @@ class SimpleFormattedSQSQueue[T](baseQueue: SQSQueue) extends FormattedSQSQueue[
   }
 
   def enumerator(implicit ec: ExecutionContext, f: Reads[T]) : Enumerator[SQSMessage[T]] = Enumerator.fromCallback1[SQSMessage[T]]{ (_) =>
-    next.map(Some(_))
+    next
   }
   def enumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Enumerator[SQSMessage[T]] = Enumerator.fromCallback1[SQSMessage[T]]{ (_) =>
-    nextWithLock(lockTimeout).map(Some(_))
+    nextWithLock(lockTimeout)
   }
 
 }

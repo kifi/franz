@@ -10,8 +10,6 @@ import scala.concurrent.duration.FiniteDuration
 
 case class QueueName(name: String)
 
-case object QueueReadTimeoutException extends Exception
-
 case class MessageId(id: String)
 
 
@@ -29,13 +27,13 @@ trait SQSQueue {
   def send(msg: String)(implicit ec: ExecutionContext): Future[MessageId]
   def send(msg: JsValue)(implicit ec: ExecutionContext): Future[MessageId]
 
-  def nextString(implicit ec: ExecutionContext): Future[SQSStringMessage]
-  def nextStringWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[SQSStringMessage]
+  def nextString(implicit ec: ExecutionContext): Future[Option[SQSStringMessage]]
+  def nextStringWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSStringMessage]]
   def nextStringBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSStringMessage]]
   def nextStringBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSStringMessage]]
 
-  def nextJson(implicit ec: ExecutionContext): Future[SQSJsonMessage]
-  def nextJsonWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[SQSJsonMessage]
+  def nextJson(implicit ec: ExecutionContext): Future[Option[SQSJsonMessage]]
+  def nextJsonWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSJsonMessage]]
   def nextJsonBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSJsonMessage]]
   def nextJsonBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSJsonMessage]]
 

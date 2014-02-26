@@ -46,14 +46,13 @@ class SimpleSQSQueue(sqs: AmazonSQSAsync, queue: QueueName) extends SQSQueue {
     val request = new ReceiveMessageRequest
     request.setMaxNumberOfMessages(1)
     request.setVisibilityTimeout(lockTimeout.toSeconds.toInt)
-    request.setWaitTimeSeconds(86400)
+    request.setWaitTimeSeconds(10)
     request.setQueueUrl(queueUrl)
     val p = Promise[Seq[SQSStringMessage]]
     sqs.receiveMessageAsync(request, new AsyncHandler[ReceiveMessageRequest, ReceiveMessageResult]{
       def onError(exception: Exception) = p.failure(exception)
       def onSuccess(req: ReceiveMessageRequest, response: ReceiveMessageResult) = {
         val rawMessages = response.getMessages()
-        if (rawMessages.isEmpty) throw QueueReadTimeoutException
         p.success(rawMessages.asScala.map { rawMessage =>
           SQSStringMessage(rawMessage.getBody(), {() =>
             val request = new DeleteMessageRequest
@@ -69,9 +68,9 @@ class SimpleSQSQueue(sqs: AmazonSQSAsync, queue: QueueName) extends SQSQueue {
 
   def nextStringBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSStringMessage]] = nextStringBatchWithLock(maxBatchSize, new FiniteDuration(0, SECONDS))
 
-  def nextStringWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[SQSStringMessage] = nextStringBatchWithLock(1, lockTimeout).map(_(0))
+  def nextStringWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSStringMessage]] = nextStringBatchWithLock(1, lockTimeout).map(_.headOption)
 
-  def nextString(implicit ec: ExecutionContext): Future[SQSStringMessage] = nextStringBatch(1).map(_(0))
+  def nextString(implicit ec: ExecutionContext): Future[Option[SQSStringMessage]] = nextStringBatch(1).map(_.headOption)
 
 
   def nextJsonBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSJsonMessage]] = {
@@ -84,25 +83,25 @@ class SimpleSQSQueue(sqs: AmazonSQSAsync, queue: QueueName) extends SQSQueue {
 
   def nextJsonBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSJsonMessage]] = nextJsonBatchWithLock(maxBatchSize, new FiniteDuration(0, SECONDS))
 
-  def nextJsonWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[SQSJsonMessage] = nextJsonBatchWithLock(1, lockTimeout).map(_(0))
+  def nextJsonWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSJsonMessage]] = nextJsonBatchWithLock(1, lockTimeout).map(_.headOption)
 
-  def nextJson(implicit ec: ExecutionContext): Future[SQSJsonMessage] = nextJsonBatch(1).map(_(0))
+  def nextJson(implicit ec: ExecutionContext): Future[Option[SQSJsonMessage]] = nextJsonBatch(1).map(_.headOption)
 
 
   def stringEnumerator(implicit ec: ExecutionContext) : Enumerator[SQSStringMessage] = Enumerator.fromCallback1[SQSStringMessage]{ (_) =>
-    nextString.map(Some(_))
+    nextString
   }
 
   def stringEnumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[SQSStringMessage] = Enumerator.fromCallback1[SQSStringMessage]{ (_) =>
-    nextStringWithLock(lockTimeout).map(Some(_))
+    nextStringWithLock(lockTimeout)
   }
 
   def jsonEnumerator(implicit ec: ExecutionContext): Enumerator[SQSJsonMessage] = Enumerator.fromCallback1[SQSJsonMessage]{ (_) =>
-    nextJson.map(Some(_))
+    nextJson
   }
 
   def jsonEnumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[SQSJsonMessage] = Enumerator.fromCallback1[SQSJsonMessage]{ (_) =>
-    nextJsonWithLock(lockTimeout).map(Some(_))
+    nextJsonWithLock(lockTimeout)
   }
 
 

@@ -7,7 +7,8 @@ import com.amazonaws.services.sqs.model.{
   ReceiveMessageRequest,
   DeleteMessageRequest,
   SendMessageResult,
-  ReceiveMessageResult
+  ReceiveMessageResult,
+  CreateQueueRequest
 }
 import com.amazonaws.handlers.AsyncHandler
 
@@ -21,11 +22,13 @@ import scala.collection.JavaConverters._
 
 
 
+class SimpleSQSQueue(sqs: AmazonSQSAsync, queue: QueueName, createIfNotExists: Boolean = false) extends SQSQueue {
 
-
-class SimpleSQSQueue(sqs: AmazonSQSAsync, queue: QueueName) extends SQSQueue {
-
-  val queueUrl: String = sqs.getQueueUrl(new GetQueueUrlRequest(queue.name)).getQueueUrl
+  val queueUrl: String = if (createIfNotExists){
+    sqs.createQueue(new CreateQueueRequest(queue.name)).getQueueUrl
+  } else {
+    sqs.getQueueUrl(new GetQueueUrlRequest(queue.name)).getQueueUrl
+  }
 
   def send(msg: String)(implicit ec: ExecutionContext): Future[MessageId] = {
     val request = new SendMessageRequest

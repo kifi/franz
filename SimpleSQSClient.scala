@@ -12,16 +12,13 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
   val sqs = if (buffered) new AmazonSQSBufferedAsyncClient(_sqs) else _sqs;
   sqs.setRegion(Region.getRegion(region))
 
-  def apply(queue: QueueName): SQSQueue = {
-    new SimpleSQSQueue(sqs, queue)
+
+  def simple(queue: QueueName, createIfNotExists: Boolean=false): SQSQueue = {
+    new SimpleSQSQueue(sqs, queue, createIfNotExists)
   }
 
-  def simple(queue: QueueName): SQSQueue = {
-    new SimpleSQSQueue(sqs, queue)
-  }
-
-  def formatted[T](queue: QueueName): FormattedSQSQueue[T] = {
-    new SimpleFormattedSQSQueue[T](simple(queue))
+  def formatted[T](queue: QueueName, createIfNotExists: Boolean=false): FormattedSQSQueue[T] = {
+    new SimpleFormattedSQSQueue[T](simple(queue, createIfNotExists))
   }
 
 }

@@ -3,23 +3,29 @@ package com.kifi.franz
 import com.amazonaws.auth.{AWSCredentialsProvider, AWSCredentials}
 import com.amazonaws.regions.{Regions, Region}
 import com.amazonaws.services.sqs.AmazonSQSAsyncClient
+import com.amazonaws.services.sqs.buffered.AmazonSQSBufferedAsyncClient
+
+import play.api.libs.json.{JsValue, Format}
 
 
-class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Regions) extends SQSClient {
+class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Regions, buffered: Boolean) extends SQSClient {
 
-  val sqs = new AmazonSQSAsyncClient(credentialProvider)
+  val _sqs = new AmazonSQSAsyncClient(credentialProvider)
+  val sqs = if (buffered) new AmazonSQSBufferedAsyncClient(_sqs) else _sqs;
   sqs.setRegion(Region.getRegion(region))
 
-  def apply(queue: QueueName): SQSQueue = {
-    new SimpleSQSQueue(sqs, queue)
+
+  def simple(queue: QueueName, createIfNotExists: Boolean=false): SQSQueue[String] = {
+    new SimpleSQSQueue(sqs, queue, createIfNotExists)
   }
 
-  def simple(queue: QueueName): SQSQueue = {
-    new SimpleSQSQueue(sqs, queue)
+  def json(queue: QueueName, createIfNotExists: Boolean=false): SQSQueue[JsValue] = {
+    new JsonSQSQueue(sqs, queue, createIfNotExists)
   }
 
-  def formatted[T](queue: QueueName): FormattedSQSQueue[T] = {
-    new SimpleFormattedSQSQueue[T](simple(queue))
+
+  def formatted[T](queue: QueueName, createIfNotExists: Boolean=false)(implicit format: Format[T]): SQSQueue[T] = {
+    new FormattedSQSQueue(sqs, queue, createIfNotExists, format)
   }
 
 }
@@ -27,12 +33,12 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
 
 object SimpleSQSClient {
 
-  def apply(credentials: AWSCredentials, region: Regions) : SQSClient = {
+  def apply(credentials: AWSCredentials, region: Regions, buffered: Boolean = true) : SQSClient = {
     val credentialProvider = new AWSCredentialsProvider {
       def getCredentials() = credentials
       def refresh() = {}
     }
-    new SimpleSQSClient(credentialProvider, region)
+    new SimpleSQSClient(credentialProvider, region, buffered);
   }
 
   def apply(key: String, secret: String, region: Regions) : SQSClient = {
@@ -40,7 +46,7 @@ object SimpleSQSClient {
       def getAWSAccessKeyId() = key
       def getAWSSecretKey() = secret
     }
-    this(credentials, region)
+    this(credentials, region, true)
   }
 
 }

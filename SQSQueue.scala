@@ -41,7 +41,7 @@ trait SQSQueue[T]{
   protected implicit def asString(obj: T): String
   protected implicit def fromString(s: String): T
 
-  val queueUrl: String = initQueueUrl()
+  protected val queueUrl: String = initQueueUrl()
   protected def initQueueUrl() = {
     if (createIfNotExists){
       sqs.createQueue(new CreateQueueRequest(queue.name)).getQueueUrl

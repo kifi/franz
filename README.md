@@ -1,4 +1,4 @@
-__Franz__ is a simple reactive-ish Scala wrapper around Amazons SQS persitent message queue.
+__Franz__ is a simple reactive-ish Scala wrapper around the Amazons SQS persitent message queue service.
 
 #Initialization
 First you will need an instance of the trait ```SQSClient```. The only currently available implementation is ```SimpleSQSClient```, which has three constructors
@@ -6,10 +6,15 @@ First you will need an instance of the trait ```SQSClient```. The only currently
 ```scala
 new SimpleSQSClient(
 	credentialProvider: com.amazonaws.auth.AWSCredentialsProvider, 
-	region: com.amazonaws.regions.Regions
+	region: com.amazonaws.regions.Regions,
+	buffered: Boolean
 )
 
-SimpleSQSClient(credentials: com.amazonaws.auth.AWSCredentials, region: com.amazonaws.regions.Regions)
+SimpleSQSClient(
+	credentials: com.amazonaws.auth.AWSCredentials, 
+	region: com.amazonaws.regions.Regions, 
+	buffered: Boolean=true
+)
 
 SimpleSQSClient(key: String, secret: String, region: com.amazonaws.regions.Regions)
 ```
@@ -21,22 +26,17 @@ import com.amazonaws.regions.Regions
 val sqs = SimpleSQSClient(<your aws access key>, <your aws secret key>, Regions.US_WEST_1)
 ```
 
-Now that we have an instance of ```SQSClient``` we can get ourselves an instance of ```SQSQueue``` like so
-
-```scala
-val queue = sqs.simple(QueueName(<your queue name>))
-```
+We'll come back to how to actually get a queue from the client shortly.
 
 
 #SQSQueue 
-
+The type you'll be using to actually interact with an SQS Queue is ```SQSQueue[T]```. It provides all the primitives for sending and receiving messages.
 
 ##Sending
-```SQSQueue``` provides two methods for sending messages:
+```SQSQueue[T]``` provides one method for sending messages (by default messages are buffered for up to 200ms and then sent in batch):
 
 ```scala
-def send(msg: String)(implicit ec: ExecutionContext): Future[MessageId]
-def send(msg: play.api.libs.json.JsValue)(implicit ec: ExecutionContext): Future[MessageId]
+def send(msg: T)(implicit ec: ExecutionContext): Future[MessageId]
 ```
 
 There is no current use for the returned ```MessageId```, but you can use the success of the Future as a send confimation.
@@ -48,18 +48,12 @@ There is no current use for the returned ```MessageId```, but you can use the su
 ```SQSQueue``` provides several methods for getting the next message in the queue
 
 ```scala
-def nextString(implicit ec: ExecutionContext): Future[Option[SQSStringMessage]]
-def nextStringWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSStringMessage]]
-def nextStringBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSStringMessage]]
-def nextStringBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSStringMessage]]
-
-def nextJson(implicit ec: ExecutionContext): Future[Option[SQSJsonMessage]]
-def nextJsonWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSJsonMessage]]
-def nextJsonBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSJsonMessage]]
-def nextJsonBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSJsonMessage]]
+def next(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]]
+def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]]  
+def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]]
+def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]]  
 ```
-
-The returned ```SQS*Message``` object are instances of ```SQSMessage[String]``` and ```SQSMessage[play.api.libs.json.JsValue]``` respectively. ```SQSMessage[T]``` has the fields
+The returned ```SQSMessage[T]``` objects have the fields
 ```scala
 val body: T //actual message payload
 val attributes: Map[String,String] //raw attributes from com.amazonaws.services.sqs.model.Message
@@ -70,35 +64,30 @@ The ```*WithLock``` methods lock (or rather, hide) the retrieved message(s) in t
 
 If the lock expires the message will again be available for retrieval, which is useful e.g. in case of an error when cosume was never called.
 
-A call to retrieve a message (batch) will long poll for 10 seconds. If there is nothing to fetch an empty sequence or a ```None``` will be returned, depending on the method.
+The implementation uses 20 second long polls behind the scenes. If no message was available within that time a ```None``` or ```Seq.empty``` will be returned (depending on the method used).
+Note that due to the distributed and eventually consistent nature of SQS it is sometimes possible to get an empty response even if tehre are some (but few) messages in the queue if you happen to poll an empty node. The best practice solution to that is continuos retries, i.e. you'll make 3 requests per mintue.
 
 ###Iteratees
-For the more functionally inclined ```SQSQueue``` also provides enumerators to be used with your favorite Iteratee
-```scala
-def stringEnumerator(implicit ec: ExecutionContext) : Enumerator[SQSStringMessage]
-def stringEnumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[SQSStringMessage]
+For the more functionally inclined ```SQSQueue[T]``` also provides enumerators to be used with your favorite Iteratee
 
-def jsonEnumerator(implicit ec: ExecutionContext): Enumerator[SQSJsonMessage]
-def jsonEnumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[SQSJsonMessage]
+```scala
+def enumerator(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] 
+def enumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] 
 ```
 
 The semantics of retrievel and locking are identical to those of the ```next*``` methods.
 
-#FormattedSQSQueue
-In addition to ```SQSQueue``` __Franz__ also has a ```FormattedSQSQueue[T]```, which has the signature 
+#Getting a Queue
+
+```SQSClient``` currently has three methods for getting a specific queue
 
 ```scala
-def send(msg: T)(implicit ec: ExecutionContext, f: Writes[T]): Future[MessageId]
-def next(implicit ec: ExecutionContext, f: Reads[T]): Future[Option[SQSMessage[T]]]
-def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[Option[SQSMessage[T]]]
-def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext, f: Reads[T]): Future[Seq[SQSMessage[T]]]
-def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Future[Seq[SQSMessage[T]]]
-def enumerator(implicit ec: ExecutionContext, f: Reads[T]): Enumerator[SQSMessage[T]]
-def enumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext, f: Reads[T]): Enumerator[SQSMessage[T]]
-``` 
+def simple(queue: QueueName, createIfNotExists: Boolean=false): SQSQueue[String]
+def json(queue: QueueName, createIfNotExists: Boolean=false): SQSQueue[JsValue]
+def formatted[T](queue: QueueName, createIfNotExists: Boolean=false)(implicit format: Format[T]): SQSQueue[T]
+```
 
-The ```Reads[T]``` and ```Writes[T]``` are from ```play.api.libs.json``` and this basically allows you to have a queue for any type with a play style implicit json formatter. The semantics of the methods here are identical to the ```*Json*``` methods on ```SQSQueue```, except that serialization/deserilization is taken care of for you.
-
+Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```QueueName``` is simply a typed wrapper around a string, which should be the full queue name (*not* the queue url). 
 
 #Limitations
 

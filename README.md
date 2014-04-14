@@ -96,3 +96,9 @@ Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```Qu
 - FIFO not guaranteed for messages sent close together. (i.e. there is no strict ordering of messages)
 - Multicasting is really cumbersome.
 - No replay. Once a message is consumed, it's gone.
+
+#Installation
+
+You can get Franz this from maven central. The artifact is `franz_2.10` and the group id is `com.kifi`
+Current newest version is `0.3.1`.
+

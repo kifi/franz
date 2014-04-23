@@ -14,7 +14,7 @@ trait FakeSQSQueue[T] extends SQSQueue[T] {
 
   protected val sqs: AmazonSQSAsync = null
   protected val createIfNotExists: Boolean = false
-  protected val queue: QueueName = QueueName("fake")
+  val queue: QueueName = QueueName("fake")
   protected implicit def asString(obj: T): String = null
   protected implicit def fromString(s: String): T = null
 

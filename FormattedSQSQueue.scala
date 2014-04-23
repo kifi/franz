@@ -9,7 +9,7 @@ import scala.language.implicitConversions
 
 class FormattedSQSQueue[T](
     protected val sqs: AmazonSQSAsync,
-    protected val queue: QueueName,
+    val queue: QueueName,
     protected val createIfNotExists: Boolean = false,
     format: Format[T]
   ) extends SQSQueue[T] {

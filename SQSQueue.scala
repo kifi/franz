@@ -20,24 +20,18 @@ import com.amazonaws.services.sqs.model.{
 }
 import com.amazonaws.handlers.AsyncHandler
 
-
-
-
-
 case class QueueName(name: String)
 
 case class MessageId(id: String)
 
-
 case class SQSMessage[T](body: T, consume: () => Unit, attributes: Map[String,String] = Map.empty)
-
-
 
 trait SQSQueue[T]{
 
+  val queue: QueueName
+
   protected val sqs: AmazonSQSAsync
   protected val createIfNotExists: Boolean
-  protected val queue: QueueName
   protected implicit def asString(obj: T): String
   protected implicit def fromString(s: String): T
 

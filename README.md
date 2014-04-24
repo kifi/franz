@@ -100,5 +100,5 @@ Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```Qu
 #Installation
 
 You can get Franz this from maven central. The artifact is `franz_2.10` and the group id is `com.kifi`
-Current newest version is `0.3.1`.
+Current newest version is `0.3.2`.
 

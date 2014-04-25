@@ -89,7 +89,7 @@ def formatted[T](queue: QueueName, createIfNotExists: Boolean=false)(implicit fo
 
 Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```QueueName``` is simply a typed wrapper around a string, which should be the full queue name (*not* the queue url). 
 
-#Limitations
+#SQS Limitations
 
 - Fairly high latency. Not really suitable for things that require immediate action.
 - Message size is limited to ~64KB.
@@ -100,5 +100,10 @@ Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```Qu
 #Installation
 
 You can get Franz this from maven central. The artifact is `franz_2.10` and the group id is `com.kifi`
-Current newest version is `0.3.2`.
+Current newest version is `0.3.2`. If you are using __sbt__, just add
 
+```
+"com.kifi" % "franz_2.10" % "0.3.2"
+```
+
+to your dependencies and you should be good to go. All classes are in in `com.kifi.franz`.

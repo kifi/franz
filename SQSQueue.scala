@@ -24,7 +24,7 @@ case class QueueName(name: String)
 
 case class MessageId(id: String)
 
-case class SQSMessage[T](body: T, consume: () => Unit, attributes: Map[String,String] = Map.empty)
+case class SQSMessage[T](id: MessageId, body: T, consume: () => Unit, attributes: Map[String,String] = Map.empty)
 
 trait SQSQueue[T]{
 
@@ -57,9 +57,9 @@ trait SQSQueue[T]{
     p.future
   }
 
-  def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = {
+  private def nextBatchRequestWithLock(requestMaxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = {
     val request = new ReceiveMessageRequest
-    request.setMaxNumberOfMessages(maxBatchSize)
+    request.setMaxNumberOfMessages(requestMaxBatchSize)
     request.setVisibilityTimeout(lockTimeout.toSeconds.toInt)
     request.setWaitTimeSeconds(10)
     request.setQueueUrl(queueUrl)
@@ -70,7 +70,7 @@ trait SQSQueue[T]{
         try {
           val rawMessages = response.getMessages()
           p.success(rawMessages.asScala.map { rawMessage =>
-            SQSMessage[T](rawMessage.getBody(), {() =>
+            SQSMessage[T](MessageId(rawMessage.getMessageId()), rawMessage.getBody(), {() =>
               val request = new DeleteMessageRequest
               request.setQueueUrl(queueUrl)
               request.setReceiptHandle(rawMessage.getReceiptHandle)
@@ -83,6 +83,18 @@ trait SQSQueue[T]{
       }
     })
     p.future
+  }
+
+
+  def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = {
+    val maxBatchSizePerRequest = 10
+    val requiredBatchRequests = Seq.fill(maxBatchSize / maxBatchSizePerRequest)(maxBatchSizePerRequest) :+ (maxBatchSize % maxBatchSizePerRequest)
+    val futureBatches = requiredBatchRequests.collect { case requestMaxBatchSize if requestMaxBatchSize > 0 => nextBatchRequestWithLock(requestMaxBatchSize, lockTimeout) }
+    Future.sequence(futureBatches).map { batches => 
+      val messages =  batches.flatten
+      val distinctMessages = messages.map { message => (message.id -> message) }.toMap.values 
+      distinctMessages.toSeq
+    }
   }
 
   def next(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchWithLock(1, new FiniteDuration(0, SECONDS)).map(_.headOption)

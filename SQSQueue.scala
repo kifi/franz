@@ -45,7 +45,7 @@ trait SQSQueue[T]{
   }
 
 
-  def send(msg: T)(implicit ec: ExecutionContext): Future[MessageId] = {
+  def send(msg: T): Future[MessageId] = {
     val request = new SendMessageRequest
     request.setMessageBody(msg)
     request.setQueueUrl(queueUrl)
@@ -57,7 +57,7 @@ trait SQSQueue[T]{
     p.future
   }
 
-  private def nextBatchRequestWithLock(requestMaxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = {
+  protected def nextBatchRequestWithLock(requestMaxBatchSize: Int, lockTimeout: FiniteDuration): Future[Seq[SQSMessage[T]]] = {
     val request = new ReceiveMessageRequest
     request.setMaxNumberOfMessages(requestMaxBatchSize)
     request.setVisibilityTimeout(lockTimeout.toSeconds.toInt)
@@ -97,8 +97,8 @@ trait SQSQueue[T]{
     }
   }
 
-  def next(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchWithLock(1, new FiniteDuration(0, SECONDS)).map(_.headOption)
-  def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchWithLock(1, lockTimeout).map(_.headOption)
+  def next(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchRequestWithLock(1, new FiniteDuration(0, SECONDS)).map(_.headOption)
+  def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchRequestWithLock(1, lockTimeout).map(_.headOption)
   def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = nextBatchWithLock(maxBatchSize, new FiniteDuration(0, SECONDS))
   def enumerator(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] = Enumerator.fromCallback1[SQSMessage[T]]{ (_) => next }
   def enumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] = Enumerator.fromCallback1[SQSMessage[T]]{ (_) => nextWithLock(lockTimeout) }

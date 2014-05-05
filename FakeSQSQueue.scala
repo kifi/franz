@@ -20,8 +20,8 @@ trait FakeSQSQueue[T] extends SQSQueue[T] {
 
   override def initQueueUrl(): String = ""
 
-  override def send(msg: T)(implicit ec: ExecutionContext): Future[MessageId] = Future.successful(MessageId(""))
+  override def send(msg: T): Future[MessageId] = Future.successful(MessageId(""))
 
-  override def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = Future.successful(Seq.empty)
+  override protected def nextBatchRequestWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration): Future[Seq[SQSMessage[T]]] = Future.successful(Seq.empty)
 
 }

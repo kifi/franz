@@ -4,13 +4,13 @@ import com.amazonaws.auth.{AWSCredentialsProvider, AWSCredentials}
 import com.amazonaws.regions.{Regions, Region}
 import com.amazonaws.services.sqs.AmazonSQSAsyncClient
 import com.amazonaws.services.sqs.buffered.AmazonSQSBufferedAsyncClient
-import com.amazonaws.services.sqs.model.{DeleteQueueRequest, GetQueueUrlRequest, GetQueueUrlResult, QueueDoesNotExistException}
+import com.amazonaws.services.sqs.model.{DeleteQueueRequest, GetQueueUrlRequest, GetQueueUrlResult, QueueDoesNotExistException, ListQueuesRequest, ListQueuesResult}
 import com.amazonaws.handlers.AsyncHandler
 
 import play.api.libs.json.{JsValue, Format}
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{Future, Promise, ExecutionContext}
 import scala.util.{Success, Failure}
-
+import scala.collection.JavaConversions._
 
 class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Regions, buffered: Boolean) extends SQSClient {
 
@@ -41,13 +41,34 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
       }
       def onSuccess(req: GetQueueUrlRequest, response: GetQueueUrlResult) = {
         val queueUrl = response.getQueueUrl()
-        sqs.deleteQueueAsync(new DeleteQueueRequest(queueUrl), new AsyncHandler[DeleteQueueRequest, Void] {
-          def onError(exception: Exception) = queueDidExist.failure(exception)
-          def onSuccess(req: DeleteQueueRequest, response: Void) = queueDidExist.success(true)
-        })
+        queueDidExist.completeWith(deleteQueueByUrl(queueUrl))
       }
     })
     queueDidExist.future
+  }
+
+  def delete(queuePrefix: String)(implicit executor: ExecutionContext): Future[Int] = {
+    val deletedQueues = Promise[Int]    
+    sqs.listQueuesAsync(new ListQueuesRequest(queuePrefix), new AsyncHandler[ListQueuesRequest, ListQueuesResult] {
+      def onError(exception: Exception) = deletedQueues.failure(exception)
+      def onSuccess(req: ListQueuesRequest, response: ListQueuesResult) = {
+        val queueUrls = response.getQueueUrls()
+        Future.sequence(queueUrls.map(deleteQueueByUrl)) onComplete {
+            case Failure(exception) => deletedQueues.failure(exception)
+            case Success(confirmations) => deletedQueues.success(confirmations.length)
+        }
+      }
+    })
+    deletedQueues.future
+  }
+
+  private def deleteQueueByUrl(queueUrl: String): Future[Boolean] = {
+    val deletedQueue = Promise[Boolean]
+    sqs.deleteQueueAsync(new DeleteQueueRequest(queueUrl), new AsyncHandler[DeleteQueueRequest, Void] {
+      def onError(exception: Exception) = deletedQueue.failure(exception)
+      def onSuccess(req: DeleteQueueRequest, response: Void) = deletedQueue.success(true)
+    })
+    deletedQueue.future
   }
 }
 

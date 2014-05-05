@@ -47,7 +47,7 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
     queueDidExist.future
   }
 
-  def delete(queuePrefix: String)(implicit executor: ExecutionContext): Future[Int] = {
+  def deleteByPrefix(queuePrefix: String)(implicit executor: ExecutionContext): Future[Int] = {
     val deletedQueues = Promise[Int]    
     sqs.listQueuesAsync(new ListQueuesRequest(queuePrefix), new AsyncHandler[ListQueuesRequest, ListQueuesResult] {
       def onError(exception: Exception) = deletedQueues.failure(exception)

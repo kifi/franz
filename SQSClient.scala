@@ -8,6 +8,6 @@ trait SQSClient {
   def json(queue: QueueName, createIfNotExists: Boolean=false): SQSQueue[JsValue]
   def formatted[T](queue: QueueName, createIfNotExists: Boolean=false)(implicit format: Format[T]): SQSQueue[T]
   def delete(queue: QueueName): Future[Boolean]
-  def delete(queuePrefix: String)(implicit executor: ExecutionContext): Future[Int] 
+  def deleteByPrefix(queuePrefix: String)(implicit executor: ExecutionContext): Future[Int] 
 }
 

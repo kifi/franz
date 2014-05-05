@@ -1,6 +1,7 @@
 package com.kifi.franz
 
 import play.api.libs.json.{JsValue, Format}
+import scala.concurrent.Future
 
 trait SQSClient {
   def simple(queue: QueueName, createIfNotExists: Boolean=false): SQSQueue[String]

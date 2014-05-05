@@ -4,8 +4,12 @@ import com.amazonaws.auth.{AWSCredentialsProvider, AWSCredentials}
 import com.amazonaws.regions.{Regions, Region}
 import com.amazonaws.services.sqs.AmazonSQSAsyncClient
 import com.amazonaws.services.sqs.buffered.AmazonSQSBufferedAsyncClient
+import com.amazonaws.services.sqs.model.{DeleteQueueRequest, GetQueueUrlRequest, GetQueueUrlResult, QueueDoesNotExistException}
+import com.amazonaws.handlers.AsyncHandler
 
 import play.api.libs.json.{JsValue, Format}
+import scala.concurrent.{Future, Promise}
+import scala.util.{Success, Failure}
 
 
 class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Regions, buffered: Boolean) extends SQSClient {
@@ -28,8 +32,24 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
     new FormattedSQSQueue(sqs, queue, createIfNotExists, format)
   }
 
+  def delete(queue: QueueName): Future[Boolean] = {
+    val queueDidExist = Promise[Boolean]
+    sqs.getQueueUrlAsync(new GetQueueUrlRequest(queue.name), new AsyncHandler[GetQueueUrlRequest, GetQueueUrlResult] {
+      def onError(exception: Exception) = exception match {
+        case _: QueueDoesNotExistException => queueDidExist.success(false)
+        case _ => queueDidExist.failure(exception)
+      }
+      def onSuccess(req: GetQueueUrlRequest, response: GetQueueUrlResult) = {
+        val queueUrl = response.getQueueUrl()
+        sqs.deleteQueueAsync(new DeleteQueueRequest(queueUrl), new AsyncHandler[DeleteQueueRequest, Void] {
+          def onError(exception: Exception) = queueDidExist.failure(exception)
+          def onSuccess(req: DeleteQueueRequest, response: Void) = queueDidExist.success(true)
+        })
+      }
+    })
+    queueDidExist.future
+  }
 }
-
 
 object SimpleSQSClient {
 
@@ -50,3 +70,4 @@ object SimpleSQSClient {
   }
 
 }
+

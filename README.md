@@ -65,7 +65,7 @@ The ```*WithLock``` methods lock (or rather, hide) the retrieved message(s) in t
 If the lock expires the message will again be available for retrieval, which is useful e.g. in case of an error when cosume was never called.
 
 The implementation uses 20 second long polls behind the scenes. If no message was available within that time a ```None``` or ```Seq.empty``` will be returned (depending on the method used).
-Note that due to the distributed and eventually consistent nature of SQS it is sometimes possible to get an empty response even if tehre are some (but few) messages in the queue if you happen to poll an empty node. The best practice solution to that is continuos retries, i.e. you'll make 3 requests per mintue.
+Note that due to the distributed and eventually consistent nature of SQS it is sometimes possible to get an empty response even if there are some (but few) messages in the queue if you happen to poll an empty node. The best practice solution to that is continuos retries, i.e. you'll make 3 requests per mintue.
 
 ###Iteratees
 For the more functionally inclined ```SQSQueue[T]``` also provides enumerators to be used with your favorite Iteratee

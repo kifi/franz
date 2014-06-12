@@ -16,7 +16,6 @@ libraryDependencies += "com.typesafe.play" %% "play-json" % "2.2.1"
 
 libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.2.1"
 
-
 publishMavenStyle := true
 
 publishTo := {
@@ -51,5 +50,3 @@ pomExtra := (
       <url>https://github.com/stkem</url>
     </developer>
   </developers>)
-
-

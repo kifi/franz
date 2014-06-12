@@ -6,7 +6,6 @@ import play.api.libs.json.{Format, Json}
 
 import scala.language.implicitConversions
 
-
 class FormattedSQSQueue[T](
     protected val sqs: AmazonSQSAsync,
     val queue: QueueName,

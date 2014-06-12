@@ -24,7 +24,13 @@ case class QueueName(name: String)
 
 case class MessageId(id: String)
 
-case class SQSMessage[T](id: MessageId, body: T, consume: () => Unit, attributes: Map[String,String] = Map.empty)
+case class SQSMessage[T](id: MessageId, body: T, consume: () => Unit, attributes: Map[String,String]) {
+  def consume[K](block: T => K): K = {
+    val returnValue = block(body)
+    consume()
+    returnValue
+  }
+}
 
 trait SQSQueue[T]{
 
@@ -49,7 +55,7 @@ trait SQSQueue[T]{
     val request = new SendMessageRequest
     request.setMessageBody(msg)
     request.setQueueUrl(queueUrl)
-    val p = Promise[MessageId]
+    val p = Promise[MessageId]()
     sqs.sendMessageAsync(request, new AsyncHandler[SendMessageRequest,SendMessageResult]{
       def onError(exception: Exception) = p.failure(exception)
       def onSuccess(req: SendMessageRequest, res: SendMessageResult) = p.success(MessageId(res.getMessageId))
@@ -63,19 +69,23 @@ trait SQSQueue[T]{
     request.setVisibilityTimeout(lockTimeout.toSeconds.toInt)
     request.setWaitTimeSeconds(10)
     request.setQueueUrl(queueUrl)
-    val p = Promise[Seq[SQSMessage[T]]]
+    val p = Promise[Seq[SQSMessage[T]]]()
     sqs.receiveMessageAsync(request, new AsyncHandler[ReceiveMessageRequest, ReceiveMessageResult]{
       def onError(exception: Exception) = p.failure(exception)
       def onSuccess(req: ReceiveMessageRequest, response: ReceiveMessageResult) = {
         try {
-          val rawMessages = response.getMessages()
+          val rawMessages = response.getMessages
           p.success(rawMessages.asScala.map { rawMessage =>
-            SQSMessage[T](MessageId(rawMessage.getMessageId()), rawMessage.getBody(), {() =>
-              val request = new DeleteMessageRequest
-              request.setQueueUrl(queueUrl)
-              request.setReceiptHandle(rawMessage.getReceiptHandle)
-              sqs.deleteMessageAsync(request)
-            }, rawMessage.getAttributes().asScala.toMap)
+            SQSMessage[T](
+              id = MessageId(rawMessage.getMessageId),
+              body = rawMessage.getBody,
+              consume = {() =>
+                val request = new DeleteMessageRequest
+                request.setQueueUrl(queueUrl)
+                request.setReceiptHandle(rawMessage.getReceiptHandle)
+                sqs.deleteMessageAsync(request)
+              },
+              attributes = rawMessage.getAttributes.asScala.toMap)
           })
           } catch {
             case t: Throwable => p.failure(t)
@@ -89,10 +99,12 @@ trait SQSQueue[T]{
   def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = {
     val maxBatchSizePerRequest = 10
     val requiredBatchRequests = Seq.fill(maxBatchSize / maxBatchSizePerRequest)(maxBatchSizePerRequest) :+ (maxBatchSize % maxBatchSizePerRequest)
-    val futureBatches = requiredBatchRequests.collect { case requestMaxBatchSize if requestMaxBatchSize > 0 => nextBatchRequestWithLock(requestMaxBatchSize, lockTimeout) }
-    Future.sequence(futureBatches).map { batches => 
+    val futureBatches = requiredBatchRequests.collect {
+      case requestMaxBatchSize if requestMaxBatchSize > 0 => nextBatchRequestWithLock(requestMaxBatchSize, lockTimeout)
+    }
+    Future.sequence(futureBatches).map { batches =>
       val messages =  batches.flatten
-      val distinctMessages = messages.map { message => (message.id -> message) }.toMap.values 
+      val distinctMessages = messages.map { message => message.id -> message }.toMap.values
       distinctMessages.toSeq
     }
   }

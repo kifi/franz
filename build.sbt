@@ -2,7 +2,7 @@ organization := "com.kifi"
 
 name := "franz"
 
-version := "0.3.4"
+version := "0.3.5"
 
 scalaVersion := "2.10.3"
 

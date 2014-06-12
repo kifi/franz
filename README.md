@@ -65,14 +65,13 @@ def consume[K](block: T => K): K
 ```
 Which will call ```consume``` if no exception is thrown so you can do either
 ```scala
-    val event = sqsMessage.body
-    processMyEvent(event)
+    processMyEvent(sqsMessage.body)
     sqsMessage.consume()
 ```
 or
 ```scala
     sqsMessage.consume { body =>
-        processMyEvent(event)
+        processMyEvent(body)
     }
 ```
  

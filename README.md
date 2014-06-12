@@ -59,10 +59,26 @@ val body: T //actual message payload
 val attributes: Map[String,String] //raw attributes from com.amazonaws.services.sqs.model.Message
 val consume: () => Unit //deletes the message from the queue
 ```
+and the method
+```scala
+def consume[K](block: T => K): K
+```
+Which will call ```consume``` if no exception is thrown so you can do either
+```scala
+    val event = sqsMessage.body
+    processMyEvent(event)
+    sqsMessage.consume()
+```
+or
+```scala
+    sqsMessage.consume { body =>
+        processMyEvent(event)
+    }
+```
  
 The ```*WithLock``` methods lock (or rather, hide) the retrieved message(s) in the queue so that no other call will retrieve them during the lock timeout. You need to call ```consume``` on the message before the timeout expires in order to permanently remove it form the queue.
 
-If the lock expires the message will again be available for retrieval, which is useful e.g. in case of an error when cosume was never called.
+If the lock expires the message will again be available for retrieval, which is useful e.g. in case of an error when consume was never called.
 
 The implementation uses 20 second long polls behind the scenes. If no message was available within that time a ```None``` or ```Seq.empty``` will be returned (depending on the method used).
 Note that due to the distributed and eventually consistent nature of SQS it is sometimes possible to get an empty response even if there are some (but few) messages in the queue if you happen to poll an empty node. The best practice solution to that is continuos retries, i.e. you'll make 3 requests per mintue.

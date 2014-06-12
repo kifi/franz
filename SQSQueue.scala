@@ -102,7 +102,11 @@ trait SQSQueue[T]{
     val futureBatches = requiredBatchRequests.collect {
       case requestMaxBatchSize if requestMaxBatchSize > 0 => nextBatchRequestWithLock(requestMaxBatchSize, lockTimeout)
     }
-    Future.sequence(futureBatches).map { batches => batches.flatten.toSet.toSeq }
+    Future.sequence(futureBatches).map { batches =>
+      val messages =  batches.flatten
+      val distinctMessages = messages.map { message => message.id -> message }.toMap.values
+      distinctMessages.toSeq
+    }
   }
 
   def next(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchRequestWithLock(1, new FiniteDuration(0, SECONDS)).map(_.headOption)

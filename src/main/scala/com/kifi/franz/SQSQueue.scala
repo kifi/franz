@@ -1,6 +1,6 @@
-package  com.kifi.franz
+package com.kifi.franz
 
-import play.api.libs.json.{JsValue, Format}
+import play.api.libs.json.JsValue
 import play.api.libs.iteratee.Enumerator
 
 import scala.concurrent.{Future, ExecutionContext, Promise}

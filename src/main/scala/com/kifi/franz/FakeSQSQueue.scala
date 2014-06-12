@@ -1,12 +1,9 @@
 package com.kifi.franz
 
-import play.api.libs.iteratee.Enumerator
-import play.api.libs.json.JsValue
-
 import com.amazonaws.services.sqs.AmazonSQSAsync
 
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.Future
 import scala.language.implicitConversions
 
 

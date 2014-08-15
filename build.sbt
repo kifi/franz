@@ -2,9 +2,9 @@ organization := "com.kifi"
 
 name := "franz"
 
-version := "0.3.5"
+version := "0.3.6"
 
-scalaVersion := "2.10.3"
+scalaVersion := "2.10.4"
 
 resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 

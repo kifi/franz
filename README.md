@@ -5,14 +5,14 @@ First you will need an instance of the trait ```SQSClient```. The only currently
 
 ```scala
 new SimpleSQSClient(
-	credentialProvider: com.amazonaws.auth.AWSCredentialsProvider, 
+	credentialProvider: com.amazonaws.auth.AWSCredentialsProvider,
 	region: com.amazonaws.regions.Regions,
 	buffered: Boolean
 )
 
 SimpleSQSClient(
-	credentials: com.amazonaws.auth.AWSCredentials, 
-	region: com.amazonaws.regions.Regions, 
+	credentials: com.amazonaws.auth.AWSCredentials,
+	region: com.amazonaws.regions.Regions,
 	buffered: Boolean=true
 )
 
@@ -29,7 +29,7 @@ val sqs = SimpleSQSClient(<your aws access key>, <your aws secret key>, Regions.
 We'll come back to how to actually get a queue from the client shortly.
 
 
-#SQSQueue 
+#SQSQueue
 The type you'll be using to actually interact with an SQS Queue is ```SQSQueue[T]```. It provides all the primitives for sending and receiving messages.
 
 ##Sending
@@ -49,9 +49,9 @@ There is no current use for the returned ```MessageId```, but you can use the su
 
 ```scala
 def next(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]]
-def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]]  
+def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]]
 def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]]
-def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]]  
+def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]]
 ```
 The returned ```SQSMessage[T]``` objects have the fields
 ```scala
@@ -74,7 +74,7 @@ or
         processMyEvent(body)
     }
 ```
- 
+
 The ```*WithLock``` methods lock (or rather, hide) the retrieved message(s) in the queue so that no other call will retrieve them during the lock timeout. You need to call ```consume``` on the message before the timeout expires in order to permanently remove it form the queue.
 
 If the lock expires the message will again be available for retrieval, which is useful e.g. in case of an error when consume was never called.
@@ -86,8 +86,8 @@ Note that due to the distributed and eventually consistent nature of SQS it is s
 For the more functionally inclined ```SQSQueue[T]``` also provides enumerators to be used with your favorite Iteratee
 
 ```scala
-def enumerator(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] 
-def enumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] 
+def enumerator(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]]
+def enumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]]
 ```
 
 The semantics of retrievel and locking are identical to those of the ```next*``` methods.
@@ -102,7 +102,7 @@ def json(queue: QueueName, createIfNotExists: Boolean=false): SQSQueue[JsValue]
 def formatted[T](queue: QueueName, createIfNotExists: Boolean=false)(implicit format: Format[T]): SQSQueue[T]
 ```
 
-Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```QueueName``` is simply a typed wrapper around a string, which should be the full queue name (*not* the queue url). 
+Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```QueueName``` is simply a typed wrapper around a string, which should be the full queue name (*not* the queue url).
 
 #SQS Limitations
 
@@ -115,10 +115,10 @@ Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```Qu
 #Installation
 
 You can get Franz this from maven central. The artifact is `franz_2.10` and the group id is `com.kifi`
-Current newest version is `0.3.2`. If you are using __sbt__, just add
+Current newest version is `0.3.6`. If you are using __sbt__, just add
 
 ```
-"com.kifi" % "franz_2.10" % "0.3.2"
+"com.kifi" % "franz_2.10" % "0.3.6"
 ```
 
 to your dependencies and you should be good to go. All classes are in in `com.kifi.franz`.

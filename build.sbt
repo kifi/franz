@@ -2,7 +2,9 @@ organization := "com.kifi"
 
 name := "franz"
 
-version := "0.3.6"
+version := "0.3.6-SG"
+
+crossScalaVersions := Seq("2.10.4", "2.11.5")
 
 scalaVersion := "2.10.4"
 
@@ -10,11 +12,11 @@ resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repos
 
 resolvers += "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/"
 
-libraryDependencies += "com.amazonaws" % "aws-java-sdk" % "1.6.12"
+libraryDependencies += "com.amazonaws" % "aws-java-sdk" % "1.9.14"
 
-libraryDependencies += "com.typesafe.play" %% "play-json" % "2.2.1"
+libraryDependencies += "com.typesafe.play" %% "play-json" % "2.3.7"
 
-libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.2.1"
+libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.3.7"
 
 publishMavenStyle := true
 

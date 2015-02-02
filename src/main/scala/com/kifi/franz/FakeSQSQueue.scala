@@ -13,7 +13,7 @@ trait FakeSQSQueue[T] extends SQSQueue[T] {
   protected val createIfNotExists: Boolean = false
   val queue: QueueName = QueueName("fake")
   protected implicit def asString(obj: T): String = null
-  protected implicit def fromString(s: String): T = null
+  protected implicit def fromString(s: String): T = null.asInstanceOf[T]
 
   override def initQueueUrl(): String = ""
 

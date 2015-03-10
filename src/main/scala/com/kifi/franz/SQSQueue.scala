@@ -114,11 +114,22 @@ trait SQSQueue[T]{
   def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = nextBatchWithLock(maxBatchSize, new FiniteDuration(0, SECONDS))
   def enumerator(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] = Enumerator.repeatM[SQSMessage[T]]{ loopFuture(next) }
   def enumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] = Enumerator.repeatM[SQSMessage[T]]{ loopFuture(nextWithLock(lockTimeout)) }
+  def batchEnumerator(maxBatchSize:Int)(implicit ec: ExecutionContext): Enumerator[Seq[SQSMessage[T]]] = Enumerator.repeatM[Seq[SQSMessage[T]]]{ loopFutureBatch(nextBatch(maxBatchSize)) }
+  def batchEnumeratorWithLock(maxBatchSize:Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[Seq[SQSMessage[T]]] = Enumerator.repeatM[Seq[SQSMessage[T]]]{ loopFutureBatch(nextBatchWithLock(maxBatchSize, lockTimeout)) }
 
   private def loopFuture[A](f: => Future[Option[A]], promise: Promise[A] = Promise[A]())(implicit ec: ExecutionContext): Future[A] = {
     f.onComplete {
       case util.Success(Some(res)) => promise.success(res)
       case util.Success(None) => loopFuture(f, promise)
+      case util.Failure(ex) => promise.failure(ex)
+    }
+    promise.future
+  }
+
+  private def loopFutureBatch[A](f: => Future[Seq[A]], promise: Promise[Seq[A]] = Promise[Seq[A]]())(implicit ec: ExecutionContext): Future[Seq[A]] = {
+    f.onComplete {
+      case util.Success(res) if res.nonEmpty => promise.success(res)
+      case util.Success(res) if res.isEmpty => loopFutureBatch(f, promise)
       case util.Failure(ex) => promise.failure(ex)
     }
     promise.future

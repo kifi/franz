@@ -17,7 +17,7 @@ trait FakeSQSQueue[T] extends SQSQueue[T] {
 
   override def initQueueUrl(): String = ""
 
-  override def send(msg: T): Future[MessageId] = Future.successful(MessageId(""))
+  override def send(msg: T, messageAttributes: Option[Map[String,String]]): Future[MessageId] = Future.successful(MessageId(""))
 
   override protected def nextBatchRequestWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration): Future[Seq[SQSMessage[T]]] = Future.successful(Seq.empty)
 

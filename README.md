@@ -13,11 +13,13 @@ new SimpleSQSClient(
 SimpleSQSClient(
 	credentials: com.amazonaws.auth.AWSCredentials,
 	region: com.amazonaws.regions.Regions,
-	buffered: Boolean=true
+	buffered: Boolean=false
 )
 
 SimpleSQSClient(key: String, secret: String, region: com.amazonaws.regions.Regions)
 ```
+
+(Warning: Be careful when using `buffered=true`. It can improve performance, but it's buggy. Use at your own risk.)
 
 Let's use the third.
 
@@ -33,7 +35,7 @@ We'll come back to how to actually get a queue from the client shortly.
 The type you'll be using to actually interact with an SQS Queue is ```SQSQueue[T]```. It provides all the primitives for sending and receiving messages.
 
 ##Sending
-```SQSQueue[T]``` provides one method for sending messages (by default messages are buffered for up to 200ms and then sent in batch):
+```SQSQueue[T]``` provides one method for sending messages:
 
 ```scala
 def send(msg: T)(implicit ec: ExecutionContext): Future[MessageId]
@@ -115,10 +117,10 @@ Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```Qu
 #Installation
 
 You can get Franz this from maven central. The artifact is `franz_2.10` and the group id is `com.kifi`
-Current newest version is `0.3.6`. If you are using __sbt__, just add
+Current newest version is `0.3.9`. If you are using __sbt__, just add
 
 ```
-"com.kifi" % "franz_2.10" % "0.3.6"
+"com.kifi" % "franz_2.10" % "0.3.9"
 ```
 
 to your dependencies and you should be good to go. All classes are in in `com.kifi.franz`.

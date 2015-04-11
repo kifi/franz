@@ -48,7 +48,7 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
   }
 
   def deleteByPrefix(queuePrefix: String)(implicit executor: ExecutionContext): Future[Int] = {
-    val deletedQueues = Promise[Int]    
+    val deletedQueues = Promise[Int]
     sqs.listQueuesAsync(new ListQueuesRequest(queuePrefix), new AsyncHandler[ListQueuesRequest, ListQueuesResult] {
       def onError(exception: Exception) = deletedQueues.failure(exception)
       def onSuccess(req: ListQueuesRequest, response: ListQueuesResult) = {
@@ -74,7 +74,7 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
 
 object SimpleSQSClient {
 
-  def apply(credentials: AWSCredentials, region: Regions, buffered: Boolean = true) : SQSClient = {
+  def apply(credentials: AWSCredentials, region: Regions, buffered: Boolean = false) : SQSClient = {
     val credentialProvider = new AWSCredentialsProvider {
       def getCredentials() = credentials
       def refresh() = {}

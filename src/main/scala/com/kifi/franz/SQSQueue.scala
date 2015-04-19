@@ -9,14 +9,14 @@ import scala.language.implicitConversions
 
 import com.amazonaws.services.sqs.AmazonSQSAsync
 import com.amazonaws.services.sqs.model.{
-SendMessageRequest,
-GetQueueUrlRequest,
-ReceiveMessageRequest,
-DeleteMessageRequest,
-SendMessageResult,
-ReceiveMessageResult,
-CreateQueueRequest,
-MessageAttributeValue
+  SendMessageRequest,
+  GetQueueUrlRequest,
+  ReceiveMessageRequest,
+  DeleteMessageRequest,
+  SendMessageResult,
+  ReceiveMessageResult,
+  CreateQueueRequest,
+  MessageAttributeValue
 }
 import com.amazonaws.handlers.AsyncHandler
 
@@ -50,8 +50,7 @@ trait SQSQueue[T]{
     }
   }
 
-  def stringMessageAttribute( attributeValue: String ): MessageAttributeValue =
-  {
+  protected def stringMessageAttribute( attributeValue: String ): MessageAttributeValue = {
     val attr = new MessageAttributeValue()
     attr.setDataType("String")
     attr.setStringValue(attributeValue)
@@ -63,7 +62,6 @@ trait SQSQueue[T]{
   }
 
   def send(msg: T, messageAttributes: Option[Map[String, String]] = None): Future[MessageId] = {
-
     val request = new SendMessageRequest
     request.setMessageBody(msg)
     request.setQueueUrl(queueUrl)

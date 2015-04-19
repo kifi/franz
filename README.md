@@ -43,6 +43,11 @@ def send(msg: T)(implicit ec: ExecutionContext): Future[MessageId]
 
 There is no current use for the returned ```MessageId```, but you can use the success of the Future as a send confimation.
 
+If you need to pass one or more [SQS message attributes](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSMessageAttributes.html) along with the message, provide a ```Map[String,String]``` to the optional messageAttributes.
+
+```scala
+def send(msg: T, messageAttributes: Option[Map[String, String])(implicit ec: ExecutionContext): Future[MessageId]
+```
 
 ##Receiving
 

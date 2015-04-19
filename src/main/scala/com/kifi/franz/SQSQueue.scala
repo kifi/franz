@@ -1,6 +1,5 @@
 package com.kifi.franz
 
-import play.api.libs.json.JsValue
 import play.api.libs.iteratee.Enumerator
 
 import scala.concurrent.{Future, ExecutionContext, Promise}
@@ -16,7 +15,8 @@ import com.amazonaws.services.sqs.model.{
   DeleteMessageRequest,
   SendMessageResult,
   ReceiveMessageResult,
-  CreateQueueRequest
+  CreateQueueRequest,
+  MessageAttributeValue
 }
 import com.amazonaws.handlers.AsyncHandler
 
@@ -24,7 +24,7 @@ case class QueueName(name: String)
 
 case class MessageId(id: String)
 
-case class SQSMessage[T](id: MessageId, body: T, consume: () => Unit, attributes: Map[String,String]) {
+case class SQSMessage[T](id: MessageId, body: T, consume: () => Unit, attributes: Map[String,String], messageAttributes: Map[String,MessageAttributeValue]) {
   def consume[K](block: T => K): K = {
     val returnValue = block(body)
     consume()
@@ -50,11 +50,29 @@ trait SQSQueue[T]{
     }
   }
 
+  protected def stringMessageAttribute( attributeValue: String ): MessageAttributeValue = {
+    val attr = new MessageAttributeValue()
+    attr.setDataType("String")
+    attr.setStringValue(attributeValue)
+    attr
+  }
 
-  def send(msg: T): Future[MessageId] = {
+  def send(msg: T ): Future[MessageId] = {
+    send (msg, None)
+  }
+
+  def send(msg: T, messageAttributes: Option[Map[String, String]] = None): Future[MessageId] = {
     val request = new SendMessageRequest
     request.setMessageBody(msg)
     request.setQueueUrl(queueUrl)
+
+    // foreach on an Option unfolds Some, and skips if None
+    messageAttributes.foreach { ma =>
+      ma.foreach { case (k,v) =>
+        request.addMessageAttributesEntry(k, stringMessageAttribute(v))
+      }
+    }
+
     val p = Promise[MessageId]()
     sqs.sendMessageAsync(request, new AsyncHandler[SendMessageRequest,SendMessageResult]{
       def onError(exception: Exception) = p.failure(exception)
@@ -69,6 +87,9 @@ trait SQSQueue[T]{
     request.setVisibilityTimeout(lockTimeout.toSeconds.toInt)
     request.setWaitTimeSeconds(10)
     request.setQueueUrl(queueUrl)
+    request.withMessageAttributeNames("All")
+    request.withAttributeNames("All")
+
     val p = Promise[Seq[SQSMessage[T]]]()
     sqs.receiveMessageAsync(request, new AsyncHandler[ReceiveMessageRequest, ReceiveMessageResult]{
       def onError(exception: Exception) = p.failure(exception)
@@ -85,11 +106,12 @@ trait SQSQueue[T]{
                 request.setReceiptHandle(rawMessage.getReceiptHandle)
                 sqs.deleteMessageAsync(request)
               },
-              attributes = rawMessage.getAttributes.asScala.toMap)
+              attributes = rawMessage.getAttributes.asScala.toMap,
+              messageAttributes = rawMessage.getMessageAttributes.asScala.toMap)
           })
-          } catch {
-            case t: Throwable => p.failure(t)
-          }
+        } catch {
+          case t: Throwable => p.failure(t)
+        }
       }
     })
     p.future
@@ -136,5 +158,4 @@ trait SQSQueue[T]{
   }
 
 }
-
 

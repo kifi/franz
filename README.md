@@ -116,7 +116,7 @@ Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```Qu
 - Fairly high latency. Not really suitable for things that require immediate action.
 - Message size is limited to ~64KB.
 - FIFO not guaranteed for messages sent close together. (i.e. there is no strict ordering of messages)
-- Multicasting is really cumbersome.
+- Multicasting is somewhat cumbersome (could be done through [SNS fanout](https://aws.amazon.com/blogs/aws/queues-and-notifications-now-best-friends/)).
 - No replay. Once a message is consumed, it's gone.
 
 #Installation

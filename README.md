@@ -129,3 +129,7 @@ Current newest version is `0.3.9`. If you are using __sbt__, just add
 ```
 
 to your dependencies and you should be good to go. All classes are in in `com.kifi.franz`.
+
+#See Also
+
+Kifi's Reactive Scala Wrapper for Amazon SQS [blog post](http://eng.kifi.com/reactive-scala-wrapper-for-amazon-sqs/)

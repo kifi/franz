@@ -70,6 +70,11 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
     })
     deletedQueue.future
   }
+
+  def shutdown(): Unit ={
+    this.sqs.shutdown()
+  }
+
 }
 
 object SimpleSQSClient {
@@ -87,7 +92,7 @@ object SimpleSQSClient {
       def getAWSAccessKeyId() = key
       def getAWSSecretKey() = secret
     }
-    this(credentials, region, true)
+    this(credentials, region, false)
   }
 
 }

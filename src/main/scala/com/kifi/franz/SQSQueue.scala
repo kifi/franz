@@ -8,16 +8,7 @@ import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
 import com.amazonaws.services.sqs.AmazonSQSAsync
-import com.amazonaws.services.sqs.model.{
-  SendMessageRequest,
-  GetQueueUrlRequest,
-  ReceiveMessageRequest,
-  DeleteMessageRequest,
-  SendMessageResult,
-  ReceiveMessageResult,
-  CreateQueueRequest,
-  MessageAttributeValue
-}
+import com.amazonaws.services.sqs.model._
 import com.amazonaws.handlers.AsyncHandler
 
 case class QueueName(name: String)
@@ -77,6 +68,27 @@ trait SQSQueue[T]{
     sqs.sendMessageAsync(request, new AsyncHandler[SendMessageRequest,SendMessageResult]{
       def onError(exception: Exception) = p.failure(exception)
       def onSuccess(req: SendMessageRequest, res: SendMessageResult) = p.success(MessageId(res.getMessageId))
+    })
+    p.future
+  }
+
+  protected def attributes(attributeNames:List[String]):Future[Map[String,String]]={
+    val request = new GetQueueAttributesRequest()
+    request.setQueueUrl(queueUrl)
+    import scala.collection.JavaConversions._
+    request.setAttributeNames(attributeNames)
+
+    val p = Promise[Map[String,String]]()
+    sqs.getQueueAttributesAsync(request, new AsyncHandler[GetQueueAttributesRequest, GetQueueAttributesResult]{
+      def onError(exception: Exception) = p.failure(exception)
+      def onSuccess(req: GetQueueAttributesRequest, response: GetQueueAttributesResult) = {
+        try {
+          val rawMessages = response.getAttributes
+          p.success(rawMessages.asScala.toMap)
+        } catch {
+          case t: Throwable => p.failure(t)
+        }
+      }
     })
     p.future
   }

@@ -72,7 +72,7 @@ trait SQSQueue[T]{
     p.future
   }
 
-  protected def attributes(attributeNames:List[String]):Future[Map[String,String]]={
+   def attributes(attributeNames:List[String]):Future[Map[String,String]]={
     val request = new GetQueueAttributesRequest()
     request.setQueueUrl(queueUrl)
     import scala.collection.JavaConversions._

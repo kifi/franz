@@ -8,7 +8,18 @@ import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
 import com.amazonaws.services.sqs.AmazonSQSAsync
-import com.amazonaws.services.sqs.model._
+import com.amazonaws.services.sqs.model.{
+  SendMessageRequest,
+  GetQueueUrlRequest,
+  ReceiveMessageRequest,
+  DeleteMessageRequest,
+  SendMessageResult,
+  ReceiveMessageResult,
+  CreateQueueRequest,
+  MessageAttributeValue,
+  GetQueueAttributesRequest,
+  GetQueueAttributesResult
+}
 import com.amazonaws.handlers.AsyncHandler
 
 case class QueueName(name: String)
@@ -72,7 +83,7 @@ trait SQSQueue[T]{
     p.future
   }
 
-   def attributes(attributeNames:List[String]):Future[Map[String,String]]={
+   def attributes(attributeNames:Seq[String]):Future[Map[String,String]]={
     val request = new GetQueueAttributesRequest()
     request.setQueueUrl(queueUrl)
     import scala.collection.JavaConversions._

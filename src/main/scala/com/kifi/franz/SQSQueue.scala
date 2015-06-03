@@ -61,11 +61,17 @@ trait SQSQueue[T]{
     send (msg, None)
   }
 
-  def send(msg: T, messageAttributes: Option[Map[String, String]] = None): Future[MessageId] = {
+  def send(msg: T, delay:Int): Future[MessageId] = {
+    send (msg, None, Some(delay))
+  }
+
+  def send(msg: T, messageAttributes: Option[Map[String, String]] = None, delay:Option[Int] = None): Future[MessageId] = {
     val request = new SendMessageRequest
     request.setMessageBody(msg)
     request.setQueueUrl(queueUrl)
-
+    delay.map{ d =>
+      request.setDelaySeconds(d)
+    }
     // foreach on an Option unfolds Some, and skips if None
     messageAttributes.foreach { ma =>
       ma.foreach { case (k,v) =>

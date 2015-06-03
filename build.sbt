@@ -2,7 +2,7 @@ organization := "com.kifi"
 
 name := "franz"
 
-version := "0.3.11"
+version := "0.3.12-SNAPSHOT"
 
 crossScalaVersions := Seq("2.10.4", "2.11.5")
 

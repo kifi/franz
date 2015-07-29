@@ -45,10 +45,11 @@ trait SQSQueue[T]{
 
   protected val queueUrl: String = initQueueUrl()
   protected def initQueueUrl() = {
-    if (createIfNotExists){
-      sqs.createQueue(new CreateQueueRequest(queue.name)).getQueueUrl
-    } else {
+    try {
       sqs.getQueueUrl(new GetQueueUrlRequest(queue.name)).getQueueUrl
+    } catch {
+      case t: com.amazonaws.services.sqs.model.QueueDoesNotExistException if createIfNotExists => sqs.createQueue(new CreateQueueRequest(queue.name)).getQueueUrl
+      case t: Throwable => throw t
     }
   }
 

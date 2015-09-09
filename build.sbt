@@ -2,7 +2,7 @@ organization := "com.kifi"
 
 name := "franz"
 
-version := "0.3.12-SNAPSHOT"
+version := "0.3.13"
 
 crossScalaVersions := Seq("2.10.4", "2.11.5")
 
@@ -12,7 +12,7 @@ resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repos
 
 resolvers += "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/"
 
-libraryDependencies += "com.amazonaws" % "aws-java-sdk" % "1.9.30"
+libraryDependencies += "com.amazonaws" % "aws-java-sdk-sqs" % "1.10.16"
 
 libraryDependencies += "com.typesafe.play" %% "play-json" % "2.3.7"
 

@@ -9,6 +9,7 @@ import scala.language.implicitConversions
 
 import com.amazonaws.services.sqs.AmazonSQSAsync
 import com.amazonaws.services.sqs.model.{
+  ChangeMessageVisibilityRequest,
   SendMessageRequest,
   GetQueueUrlRequest,
   ReceiveMessageRequest,
@@ -26,7 +27,14 @@ case class QueueName(name: String)
 
 case class MessageId(id: String)
 
-case class SQSMessage[T](id: MessageId, body: T, consume: () => Unit, attributes: Map[String,String], messageAttributes: Map[String,MessageAttributeValue]) {
+case class SQSMessage[T](
+  id: MessageId,
+  body: T,
+  consume: () => Unit,
+  setVisibilityTimeout: (FiniteDuration) => Unit,
+  attributes: Map[String,String],
+  messageAttributes: Map[String, MessageAttributeValue]) {
+
   def consume[K](block: T => K): K = {
     val returnValue = block(body)
     consume()
@@ -135,6 +143,13 @@ trait SQSQueue[T]{
                 request.setQueueUrl(queueUrl)
                 request.setReceiptHandle(rawMessage.getReceiptHandle)
                 sqs.deleteMessageAsync(request)
+              },
+              setVisibilityTimeout = {(timeout: FiniteDuration) =>
+                val request = (new ChangeMessageVisibilityRequest)
+                  .withQueueUrl(queueUrl)
+                  .withReceiptHandle(rawMessage.getReceiptHandle)
+                  .withVisibilityTimeout(timeout.toSeconds.toInt)
+                sqs.changeMessageVisibilityAsync(request)
               },
               attributes = rawMessage.getAttributes.asScala.toMap,
               messageAttributes = rawMessage.getMessageAttributes.asScala.toMap)

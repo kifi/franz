@@ -1,4 +1,4 @@
-__Franz__ is a simple reactive-ish Scala wrapper around the Amazons SQS persitent message queue service.
+__Franz__ is a simple reactive-ish Scala wrapper around the Amazons SQS persistent message queue service.
 
 #Initialization
 First you will need an instance of the trait ```SQSClient```. The only currently available implementation is ```SimpleSQSClient```, which has three constructors
@@ -87,7 +87,7 @@ The ```*WithLock``` methods lock (or rather, hide) the retrieved message(s) in t
 If the lock expires the message will again be available for retrieval, which is useful e.g. in case of an error when consume was never called.
 
 The implementation uses 20 second long polls behind the scenes. If no message was available within that time a ```None``` or ```Seq.empty``` will be returned (depending on the method used).
-Note that due to the distributed and eventually consistent nature of SQS it is sometimes possible to get an empty response even if there are some (but few) messages in the queue if you happen to poll an empty node. The best practice solution to that is continuos retries, i.e. you'll make 3 requests per mintue.
+Note that due to the distributed and eventually consistent nature of SQS it is sometimes possible to get an empty response even if there are some (but few) messages in the queue if you happen to poll an empty node. The best practice solution to that is continuous retries, i.e. you'll make 3 requests per minute.
 
 ###Iteratees
 For the more functionally inclined ```SQSQueue[T]``` also provides enumerators to be used with your favorite Iteratee
@@ -115,7 +115,7 @@ Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```Qu
 
 - Fairly high latency. Not really suitable for things that require immediate action.
 - Message size is limited to ~64KB.
-- FIFO not guaranteed for messages sent close together. (i.e. there is no strict ordering of messages)
+- FIFO not guaranteed for messages sent close together (i.e. there is no strict ordering of messages).
 - Multicasting is somewhat cumbersome (could be done through [SNS fanout](https://aws.amazon.com/blogs/aws/queues-and-notifications-now-best-friends/)).
 - No replay. Once a message is consumed, it's gone.
 

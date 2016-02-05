@@ -122,10 +122,10 @@ Where ```Format[T]``` and ```JsValue``` are form ```play.api.libs.json```. ```Qu
 #Installation
 
 You can get Franz from maven central. The artifact is `franz_2.10` or `franz_2.11` and the group id is `com.kifi`.
-The current version is `0.3.13`. For example, if you are using __sbt__, just add this to your dependencies:
+The current version is `0.3.14`. For example, if you are using __sbt__, just add this to your dependencies:
 
 ```
-"com.kifi" % "franz_2.11" % "0.3.13"
+"com.kifi" % "franz_2.11" % "0.3.14"
 ```
 
 To add a dependency that matches your scala version (2.10.x or 2.11.x), use

@@ -14,9 +14,9 @@ resolvers += "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/"
 
 libraryDependencies += "com.amazonaws" % "aws-java-sdk-sqs" % "1.10.16"
 
-libraryDependencies += "com.typesafe.play" %% "play-json" % "2.3.7"
+libraryDependencies += "com.typesafe.play" %% "play-json" % "2.4.4"
 
-libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.3.7"
+libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.4.4"
 
 publishMavenStyle := true
 

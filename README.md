@@ -131,7 +131,7 @@ The current version is `0.3.14`. For example, if you are using __sbt__, just add
 To add a dependency that matches your scala version (2.10.x or 2.11.x), use
 
 ```
-"com.kifi" %% "franz" % "0.3.13"
+"com.kifi" %% "franz" % "0.3.14"
 ```
 
 All classes are in in `com.kifi.franz`.

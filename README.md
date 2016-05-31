@@ -35,7 +35,7 @@ We'll come back to how to actually get a queue from the client shortly.
 The type you'll be using to actually interact with an SQS Queue is ```SQSQueue[T]```. It provides all the primitives for sending and receiving messages.
 
 ##Sending
-```SQSQueue[T]``` provides one method for sending messages:
+```SQSQueue[T]``` provides multiple methods for sending messages:
 
 ```scala
 def send(msg: T)(implicit ec: ExecutionContext): Future[MessageId]
@@ -48,6 +48,15 @@ If you need to pass one or more [SQS message attributes](http://docs.aws.amazon.
 ```scala
 def send(msg: T, messageAttributes: Option[Map[String, String])(implicit ec: ExecutionContext): Future[MessageId]
 ```
+
+You can submit up to 10 batched messages using the sendBatch method:
+
+If you supply more than ten message the client will return a failed Future.
+
+```scala
+def send(messages: (T, Option[Map[String,String]]))(implicit ec: ExecutionContext): Future[(Seq[MessageId],Seq[MessageId])]
+```
+
 
 ##Receiving
 
@@ -131,7 +140,7 @@ The current version is `0.3.14`. For example, if you are using __sbt__, just add
 To add a dependency that matches your scala version (2.10.x or 2.11.x), use
 
 ```
-"com.kifi" %% "franz" % "0.3.13"
+"com.kifi" %% "franz" % "0.3.14"
 ```
 
 All classes are in in `com.kifi.franz`.

@@ -87,9 +87,6 @@ trait SQSQueue[T]{
   }
 
   def sendBatch(msg: Seq[(T, Option[Map[String, String]])], delay: Option[Int] = None): Future[(Seq[MessageId],Seq[MessageId])] = {
-    if ( msg.size > 10) {
-      throw new IllegalArgumentException("sendBatch can not take more then 10 items")
-    }
     val request = new SendMessageBatchRequest()
     request.setQueueUrl(queueUrl)
     val entries = msg.map { case (message, attributes) =>

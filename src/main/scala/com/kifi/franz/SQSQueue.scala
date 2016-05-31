@@ -8,19 +8,7 @@ import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
 import com.amazonaws.services.sqs.AmazonSQSAsync
-import com.amazonaws.services.sqs.model.{
-  ChangeMessageVisibilityRequest,
-  SendMessageRequest,
-  GetQueueUrlRequest,
-  ReceiveMessageRequest,
-  DeleteMessageRequest,
-  SendMessageResult,
-  ReceiveMessageResult,
-  CreateQueueRequest,
-  MessageAttributeValue,
-  GetQueueAttributesRequest,
-  GetQueueAttributesResult
-}
+import com.amazonaws.services.sqs.model._
 import com.amazonaws.handlers.AsyncHandler
 
 case class QueueName(name: String)
@@ -96,6 +84,31 @@ trait SQSQueue[T]{
       def onSuccess(req: SendMessageRequest, res: SendMessageResult) = p.success(MessageId(res.getMessageId))
     })
     p.future
+  }
+
+  def sendBatch(msg: Seq[(T, Option[Map[String, String]])], delay: Option[Int] = None): Future[(Seq[MessageId],Seq[MessageId])] = {
+    if ( msg.size > 10) {
+      throw new IllegalArgumentException("sendBatch can not take more then 10 items")
+    }
+    val request = new SendMessageBatchRequest()
+    request.setQueueUrl(queueUrl)
+    val entries = msg.map { case (message, attributes) =>
+      val entry = new SendMessageBatchRequestEntry()
+      delay.foreach(entry.setDelaySeconds(_))
+      attributes.foreach(m => m.foreach { case (k, v) =>
+        entry.addMessageAttributesEntry(k, stringMessageAttribute(v))
+      })
+      entry.setMessageBody(message)
+      entry
+    }
+    request.setEntries(entries.asJavaCollection)
+    val p = Promise[(Seq[MessageId], Seq[MessageId])]()
+    sqs.sendMessageBatchAsync(request, new AsyncHandler[SendMessageBatchRequest,SendMessageBatchResult]{
+      def onError(exception: Exception) = p.failure(exception)
+      def onSuccess(req: SendMessageBatchRequest, res: SendMessageBatchResult) = p.success((res.getSuccessful.asScala.map(m => MessageId(m.getMessageId)), res.getFailed.asScala.map(m => MessageId(m.getId))))
+    })
+    p.future
+
   }
 
    def attributes(attributeNames:Seq[String]):Future[Map[String,String]]={

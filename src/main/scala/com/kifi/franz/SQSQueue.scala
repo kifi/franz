@@ -2,11 +2,10 @@ package com.kifi.franz
 
 import play.api.libs.iteratee.Enumerator
 
-import scala.concurrent.{Future, ExecutionContext, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
-
 import com.amazonaws.services.sqs.AmazonSQSAsync
 import com.amazonaws.services.sqs.model._
 import com.amazonaws.handlers.AsyncHandler
@@ -89,13 +88,14 @@ trait SQSQueue[T]{
   def sendBatch(msg: Seq[(T, Option[Map[String, String]])], delay: Option[Int] = None): Future[(Seq[MessageId],Seq[MessageId])] = {
     val request = new SendMessageBatchRequest()
     request.setQueueUrl(queueUrl)
-    val entries = msg.map { case (message, attributes) =>
+    val entries = msg.zipWithIndex.map { case ((message, attributes), index) =>
       val entry = new SendMessageBatchRequestEntry()
       delay.foreach(entry.setDelaySeconds(_))
       attributes.foreach(m => m.foreach { case (k, v) =>
         entry.addMessageAttributesEntry(k, stringMessageAttribute(v))
       })
       entry.setMessageBody(message)
+      entry.setId(index.toString)
       entry
     }
     request.setEntries(entries.asJavaCollection)
@@ -105,7 +105,6 @@ trait SQSQueue[T]{
       def onSuccess(req: SendMessageBatchRequest, res: SendMessageBatchResult) = p.success((res.getSuccessful.asScala.map(m => MessageId(m.getMessageId)), res.getFailed.asScala.map(m => MessageId(m.getId))))
     })
     p.future
-
   }
 
    def attributes(attributeNames:Seq[String]):Future[Map[String,String]]={

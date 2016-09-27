@@ -1,15 +1,14 @@
 package com.kifi.franz
 
-import com.amazonaws.auth.{AWSCredentialsProvider, AWSCredentials}
-import com.amazonaws.regions.{Regions, Region}
+import com.amazonaws.auth.{AWSCredentials, AWSCredentialsProvider}
+import com.amazonaws.regions.{Region, Regions}
 import com.amazonaws.services.sqs.AmazonSQSAsyncClient
 import com.amazonaws.services.sqs.buffered.AmazonSQSBufferedAsyncClient
-import com.amazonaws.services.sqs.model.{DeleteQueueRequest, GetQueueUrlRequest, GetQueueUrlResult, QueueDoesNotExistException, ListQueuesRequest, ListQueuesResult}
+import com.amazonaws.services.sqs.model._
 import com.amazonaws.handlers.AsyncHandler
 
-import play.api.libs.json.{JsValue, Format}
-import scala.concurrent.{Future, Promise, ExecutionContext}
-import scala.util.{Success, Failure}
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.{Failure, Success}
 import scala.collection.JavaConversions._
 
 class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Regions, buffered: Boolean) extends SQSClient {
@@ -21,15 +20,6 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
 
   def simple(queue: QueueName, createIfNotExists: Boolean=false): SQSQueue[String] = {
     new SimpleSQSQueue(sqs, queue, createIfNotExists)
-  }
-
-  def json(queue: QueueName, createIfNotExists: Boolean=false): SQSQueue[JsValue] = {
-    new JsonSQSQueue(sqs, queue, createIfNotExists)
-  }
-
-
-  def formatted[T](queue: QueueName, createIfNotExists: Boolean=false)(implicit format: Format[T]): SQSQueue[T] = {
-    new FormattedSQSQueue(sqs, queue, createIfNotExists, format)
   }
 
   def delete(queue: QueueName): Future[Boolean] = {
@@ -64,9 +54,9 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
 
   private def deleteQueueByUrl(queueUrl: String): Future[Boolean] = {
     val deletedQueue = Promise[Boolean]
-    sqs.deleteQueueAsync(new DeleteQueueRequest(queueUrl), new AsyncHandler[DeleteQueueRequest, Void] {
+    sqs.deleteQueueAsync(new DeleteQueueRequest(queueUrl), new AsyncHandler[DeleteQueueRequest, DeleteQueueResult] {
       def onError(exception: Exception) = deletedQueue.failure(exception)
-      def onSuccess(req: DeleteQueueRequest, response: Void) = deletedQueue.success(true)
+      def onSuccess(req: DeleteQueueRequest, response: DeleteQueueResult) = deletedQueue.success(true)
     })
     deletedQueue.future
   }

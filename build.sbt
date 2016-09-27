@@ -2,31 +2,25 @@ organization := "com.kifi"
 
 name := "franz"
 
-version := "0.3.16"
+crossScalaVersions := Seq("2.11.8", "2.12.0-M5")
 
-crossScalaVersions := Seq("2.10.4", "2.11.5")
+scalaVersion := "2.11.8"
 
-scalaVersion := "2.10.4"
-
-resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-
-resolvers += "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/"
-
-libraryDependencies += "com.amazonaws" % "aws-java-sdk-sqs" % "1.10.16"
-
-libraryDependencies += "com.typesafe.play" %% "play-json" % "2.3.7"
-
-libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.3.7"
+libraryDependencies ++= Seq(
+  "com.amazonaws" % "aws-java-sdk-sqs" % "1.11.37"
+)
 
 publishMavenStyle := true
 
 publishTo := {
-  val nexus = "https://oss.sonatype.org/"
+  val nexus = "https://nexus.groupl.es/"
   if (isSnapshot.value)
-    Some("snapshots" at nexus + "content/repositories/snapshots")
+    Some("snapshots" at nexus + "repository/maven-snapshots")
   else
-    Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+    Some("releases"  at nexus + "repository/maven-releases")
 }
+
+credentials += Credentials(Path.userHome / ".ivy2" / ".meweCredentials")
 
 publishArtifact in Test := false
 

@@ -15,10 +15,19 @@ trait FakeSQSQueue[T] extends SQSQueue[T] {
   protected implicit def asString(obj: T): String = null
   protected implicit def fromString(s: String): T = null.asInstanceOf[T]
 
-  override def initQueueUrl(): String = ""
+  override def init(): Future[String] = {
+    queueUrl = "initialized"
+    Future.successful(queueUrl)
+  }
 
-  override def send(msg: T, messageAttributes: Option[Map[String,String]], delay: Option[Int] = None): Future[MessageId] = Future.successful(MessageId(""))
+  override def send(msg: T, messageAttributes: Option[Map[String,String]], delay: Option[Int] = None): Future[MessageId] = {
+    checkIfReady()
+    Future.successful(MessageId(""))
+  }
 
-  override protected def nextBatchRequestWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration): Future[Seq[SQSMessage[T]]] = Future.successful(Seq.empty)
+  override protected def nextBatchRequestWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration): Future[Seq[SQSMessage[T]]] = {
+    checkIfReady()
+    Future.successful(Seq.empty)
+  }
 
 }

@@ -11,18 +11,19 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 import scala.collection.JavaConversions._
 
-class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Regions, buffered: Boolean) extends SQSClient {
+class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Regions, buffered: Boolean, endpointOverride:Option[String] = None) extends SQSClient {
 
   val _sqs = new AmazonSQSAsyncClient(credentialProvider)
   val sqs = if (buffered) new AmazonSQSBufferedAsyncClient(_sqs) else _sqs;
   sqs.setRegion(Region.getRegion(region))
+  endpointOverride.foreach(e => sqs.setEndpoint(e))
 
 
-  def simple(queue: QueueName, createIfNotExists: Boolean=false): SQSQueue[String] = {
-    new SimpleSQSQueue(sqs, queue, createIfNotExists)
+  override def simple(queue: QueueName, createIfNotExists: Boolean=false, endpointOverride:Option[String] = None): SQSQueue[String] = {
+    new SimpleSQSQueue(sqs, queue, createIfNotExists, endpointOverride)
   }
 
-  def delete(queue: QueueName): Future[Boolean] = {
+  override def delete(queue: QueueName): Future[Boolean] = {
     val queueDidExist = Promise[Boolean]
     sqs.getQueueUrlAsync(new GetQueueUrlRequest(queue.name), new AsyncHandler[GetQueueUrlRequest, GetQueueUrlResult] {
       def onError(exception: Exception) = exception match {
@@ -37,7 +38,7 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
     queueDidExist.future
   }
 
-  def deleteByPrefix(queuePrefix: String)(implicit executor: ExecutionContext): Future[Int] = {
+  override def deleteByPrefix(queuePrefix: String)(implicit executor: ExecutionContext): Future[Int] = {
     val deletedQueues = Promise[Int]
     sqs.listQueuesAsync(new ListQueuesRequest(queuePrefix), new AsyncHandler[ListQueuesRequest, ListQueuesResult] {
       def onError(exception: Exception) = deletedQueues.failure(exception)
@@ -61,7 +62,7 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
     deletedQueue.future
   }
 
-  def shutdown(): Unit ={
+  override def shutdown(): Unit ={
     this.sqs.shutdown()
   }
 
@@ -69,12 +70,12 @@ class SimpleSQSClient(credentialProvider: AWSCredentialsProvider, region: Region
 
 object SimpleSQSClient {
 
-  def apply(credentials: AWSCredentials, region: Regions, buffered: Boolean = false) : SQSClient = {
+  def apply(credentials: AWSCredentials, region: Regions, buffered: Boolean = false, endpointOverride:Option[String] = None) : SQSClient = {
     val credentialProvider = new AWSCredentialsProvider {
       def getCredentials() = credentials
       def refresh() = {}
     }
-    new SimpleSQSClient(credentialProvider, region, buffered);
+    new SimpleSQSClient(credentialProvider, region, buffered, endpointOverride)
   }
 
   def apply(key: String, secret: String, region: Regions) : SQSClient = {

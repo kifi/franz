@@ -1,7 +1,5 @@
 package com.kifi.franz
 
-import play.api.libs.iteratee.Enumerator
-
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import scala.collection.JavaConverters._
@@ -9,6 +7,9 @@ import scala.language.implicitConversions
 import com.amazonaws.services.sqs.AmazonSQSAsync
 import com.amazonaws.services.sqs.model._
 import com.amazonaws.handlers.AsyncHandler
+import org.slf4j.LoggerFactory
+
+class QueueNotInitializedException(qname: String) extends RuntimeException("SQS queue: \""+ qname + "\" is not initialized, run init() first and wait for succesful completion")
 
 case class QueueName(name: String)
 
@@ -38,14 +39,50 @@ trait SQSQueue[T]{
   protected implicit def asString(obj: T): String
   protected implicit def fromString(s: String): T
 
-  protected val queueUrl: String = initQueueUrl()
-  protected def initQueueUrl() = {
-    try {
-      sqs.getQueueUrl(new GetQueueUrlRequest(queue.name)).getQueueUrl
-    } catch {
-      case t: com.amazonaws.services.sqs.model.QueueDoesNotExistException if createIfNotExists => sqs.createQueue(new CreateQueueRequest(queue.name)).getQueueUrl
-      case t: Throwable => throw t
-    }
+  @volatile protected var queueUrl: String = ""
+  protected val logger = LoggerFactory.getLogger(this.getClass)
+
+
+  private def createQueue(p: Promise[String]):Unit = sqs.createQueueAsync(new CreateQueueRequest(queue.name),
+    new AsyncHandler[CreateQueueRequest, CreateQueueResult]() {
+      override def onError(exception: Exception): Unit = {
+        logger.error("SQS create queue {} exception", queue.name.asInstanceOf[Any], exception)
+        p.failure(exception)
+      }
+      override def onSuccess(request: CreateQueueRequest, result: CreateQueueResult): Unit = {
+        p.success(result.getQueueUrl)
+      }
+    })
+
+  protected def initQueueUrl(p: Promise[String]):Unit = {
+      sqs.getQueueUrlAsync(new GetQueueUrlRequest(queue.name), new AsyncHandler[GetQueueUrlRequest, GetQueueUrlResult] {
+        override def onError(exception: Exception): Unit = {
+          exception match {
+            case t: com.amazonaws.services.sqs.model.QueueDoesNotExistException if createIfNotExists => createQueue(p)
+            case e: Exception =>
+              logger.error("SQS init queue {} url exception", queue.name.asInstanceOf[Any], e)
+              p.failure(e)
+          }
+        }
+        override def onSuccess(request: GetQueueUrlRequest, result: GetQueueUrlResult): Unit = {
+          p.success(result.getQueueUrl)
+        }
+      })
+  }
+
+  def init():Future[String] = {
+    val p = Promise[String]
+    initQueueUrl(p)
+    p.future
+  }
+
+  /**
+    * by design it throws exception instead of completing future with exception to help with initialization fixes
+    * @throws QueueNotInitializedException
+    */
+  @throws[QueueNotInitializedException]
+  protected def checkIfReady():Unit = {
+    if(queueUrl.isEmpty) throw new QueueNotInitializedException(queue.name)
   }
 
   protected def stringMessageAttribute( attributeValue: String ): MessageAttributeValue = {
@@ -55,7 +92,7 @@ trait SQSQueue[T]{
     attr
   }
 
-  def send(msg: T ): Future[MessageId] = {
+  def send(msg: T): Future[MessageId] = {
     send (msg, None)
   }
 
@@ -64,6 +101,7 @@ trait SQSQueue[T]{
   }
 
   def send(msg: T, messageAttributes: Option[Map[String, String]] = None, delay:Option[Int] = None): Future[MessageId] = {
+    checkIfReady()
     val request = new SendMessageRequest
     request.setMessageBody(msg)
     request.setQueueUrl(queueUrl)
@@ -77,6 +115,7 @@ trait SQSQueue[T]{
       }
     }
 
+
     val p = Promise[MessageId]()
     sqs.sendMessageAsync(request, new AsyncHandler[SendMessageRequest,SendMessageResult]{
       def onError(exception: Exception) = p.failure(exception)
@@ -86,6 +125,7 @@ trait SQSQueue[T]{
   }
 
   def sendBatch(msg: Seq[(T, Option[Map[String, String]])], delay: Option[Int] = None): Future[(Seq[MessageId],Seq[MessageId])] = {
+    checkIfReady()
     val request = new SendMessageBatchRequest()
     request.setQueueUrl(queueUrl)
     val entries = msg.zipWithIndex.map { case ((message, attributes), index) =>
@@ -108,6 +148,7 @@ trait SQSQueue[T]{
   }
 
    def attributes(attributeNames:Seq[String]):Future[Map[String,String]]={
+    checkIfReady()
     val request = new GetQueueAttributesRequest()
     request.setQueueUrl(queueUrl)
     import scala.collection.JavaConversions._
@@ -129,6 +170,7 @@ trait SQSQueue[T]{
   }
 
   protected def nextBatchRequestWithLock(requestMaxBatchSize: Int, lockTimeout: FiniteDuration): Future[Seq[SQSMessage[T]]] = {
+    checkIfReady()
     val request = new ReceiveMessageRequest
     request.setMaxNumberOfMessages(requestMaxBatchSize)
     request.setVisibilityTimeout(lockTimeout.toSeconds.toInt)
@@ -173,6 +215,7 @@ trait SQSQueue[T]{
 
 
   def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = {
+    checkIfReady()
     val maxBatchSizePerRequest = 10
     val requiredBatchRequests = Seq.fill(maxBatchSize / maxBatchSizePerRequest)(maxBatchSizePerRequest) :+ (maxBatchSize % maxBatchSizePerRequest)
     val futureBatches = requiredBatchRequests.collect {
@@ -188,10 +231,6 @@ trait SQSQueue[T]{
   def next(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchRequestWithLock(1, new FiniteDuration(0, SECONDS)).map(_.headOption)
   def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchRequestWithLock(1, lockTimeout).map(_.headOption)
   def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = nextBatchWithLock(maxBatchSize, new FiniteDuration(0, SECONDS))
-  def enumerator(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] = Enumerator.repeatM[SQSMessage[T]]{ loopFuture(next) }
-  def enumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] = Enumerator.repeatM[SQSMessage[T]]{ loopFuture(nextWithLock(lockTimeout)) }
-  def batchEnumerator(maxBatchSize:Int)(implicit ec: ExecutionContext): Enumerator[Seq[SQSMessage[T]]] = Enumerator.repeatM[Seq[SQSMessage[T]]]{ loopFutureBatch(nextBatch(maxBatchSize)) }
-  def batchEnumeratorWithLock(maxBatchSize:Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[Seq[SQSMessage[T]]] = Enumerator.repeatM[Seq[SQSMessage[T]]]{ loopFutureBatch(nextBatchWithLock(maxBatchSize, lockTimeout)) }
 
   private def loopFuture[A](f: => Future[Option[A]], promise: Promise[A] = Promise[A]())(implicit ec: ExecutionContext): Future[A] = {
     f.onComplete {

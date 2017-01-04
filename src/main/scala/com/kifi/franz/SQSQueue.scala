@@ -29,7 +29,13 @@ case class SQSMessage[T](
   }
 }
 
+object SQSQueue {
+  val DefaultWaitTimeout = FiniteDuration(10, SECONDS)
+}
+
 trait SQSQueue[T]{
+
+  import SQSQueue._
 
   val queue: QueueName
 
@@ -128,11 +134,11 @@ trait SQSQueue[T]{
     p.future
   }
 
-  protected def nextBatchRequestWithLock(requestMaxBatchSize: Int, lockTimeout: FiniteDuration): Future[Seq[SQSMessage[T]]] = {
+  protected def nextBatchRequestWithLock(requestMaxBatchSize: Int, lockTimeout: FiniteDuration, waitTimeout: FiniteDuration): Future[Seq[SQSMessage[T]]] = {
     val request = new ReceiveMessageRequest
     request.setMaxNumberOfMessages(requestMaxBatchSize)
     request.setVisibilityTimeout(lockTimeout.toSeconds.toInt)
-    request.setWaitTimeSeconds(10)
+    request.setWaitTimeSeconds(waitTimeout.toSeconds.toInt)
     request.setQueueUrl(queueUrl)
     request.withMessageAttributeNames("All")
     request.withAttributeNames("All")
@@ -172,11 +178,11 @@ trait SQSQueue[T]{
   }
 
 
-  def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = {
+  def nextBatchWithLock(maxBatchSize: Int, lockTimeout: FiniteDuration, waitTimeout: FiniteDuration = DefaultWaitTimeout)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = {
     val maxBatchSizePerRequest = 10
     val requiredBatchRequests = Seq.fill(maxBatchSize / maxBatchSizePerRequest)(maxBatchSizePerRequest) :+ (maxBatchSize % maxBatchSizePerRequest)
     val futureBatches = requiredBatchRequests.collect {
-      case requestMaxBatchSize if requestMaxBatchSize > 0 => nextBatchRequestWithLock(requestMaxBatchSize, lockTimeout)
+      case requestMaxBatchSize if requestMaxBatchSize > 0 => nextBatchRequestWithLock(requestMaxBatchSize, lockTimeout, waitTimeout)
     }
     Future.sequence(futureBatches).map { batches =>
       val messages =  batches.flatten
@@ -185,13 +191,13 @@ trait SQSQueue[T]{
     }
   }
 
-  def next(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchRequestWithLock(1, new FiniteDuration(0, SECONDS)).map(_.headOption)
-  def nextWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchRequestWithLock(1, lockTimeout).map(_.headOption)
-  def nextBatch(maxBatchSize: Int)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = nextBatchWithLock(maxBatchSize, new FiniteDuration(0, SECONDS))
-  def enumerator(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] = Enumerator.repeatM[SQSMessage[T]]{ loopFuture(next) }
-  def enumeratorWithLock(lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] = Enumerator.repeatM[SQSMessage[T]]{ loopFuture(nextWithLock(lockTimeout)) }
-  def batchEnumerator(maxBatchSize:Int)(implicit ec: ExecutionContext): Enumerator[Seq[SQSMessage[T]]] = Enumerator.repeatM[Seq[SQSMessage[T]]]{ loopFutureBatch(nextBatch(maxBatchSize)) }
-  def batchEnumeratorWithLock(maxBatchSize:Int, lockTimeout: FiniteDuration)(implicit ec: ExecutionContext): Enumerator[Seq[SQSMessage[T]]] = Enumerator.repeatM[Seq[SQSMessage[T]]]{ loopFutureBatch(nextBatchWithLock(maxBatchSize, lockTimeout)) }
+  def next(waitTimeout: FiniteDuration = DefaultWaitTimeout)(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchRequestWithLock(1, FiniteDuration(0, SECONDS), waitTimeout).map(_.headOption)
+  def nextWithLock(lockTimeout: FiniteDuration, waitTimeout: FiniteDuration = DefaultWaitTimeout)(implicit ec: ExecutionContext): Future[Option[SQSMessage[T]]] = nextBatchRequestWithLock(1, lockTimeout, waitTimeout).map(_.headOption)
+  def nextBatch(maxBatchSize: Int, waitTimeout: FiniteDuration = DefaultWaitTimeout)(implicit ec: ExecutionContext): Future[Seq[SQSMessage[T]]] = nextBatchWithLock(maxBatchSize, FiniteDuration(0, SECONDS), waitTimeout)
+  def enumerator(waitTimeout: FiniteDuration = DefaultWaitTimeout)(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] = Enumerator.repeatM[SQSMessage[T]]{ loopFuture(next(waitTimeout)(ec)) }
+  def enumeratorWithLock(lockTimeout: FiniteDuration, waitTimeout: FiniteDuration = DefaultWaitTimeout)(implicit ec: ExecutionContext): Enumerator[SQSMessage[T]] = Enumerator.repeatM[SQSMessage[T]]{ loopFuture(nextWithLock(lockTimeout, waitTimeout)) }
+  def batchEnumerator(maxBatchSize:Int, waitTimeout: FiniteDuration = DefaultWaitTimeout)(implicit ec: ExecutionContext): Enumerator[Seq[SQSMessage[T]]] = Enumerator.repeatM[Seq[SQSMessage[T]]]{ loopFutureBatch(nextBatch(maxBatchSize, waitTimeout)) }
+  def batchEnumeratorWithLock(maxBatchSize:Int, lockTimeout: FiniteDuration, waitTimeout: FiniteDuration = DefaultWaitTimeout)(implicit ec: ExecutionContext): Enumerator[Seq[SQSMessage[T]]] = Enumerator.repeatM[Seq[SQSMessage[T]]]{ loopFutureBatch(nextBatchWithLock(maxBatchSize, lockTimeout, waitTimeout)) }
 
   private def loopFuture[A](f: => Future[Option[A]], promise: Promise[A] = Promise[A]())(implicit ec: ExecutionContext): Future[A] = {
     f.onComplete {

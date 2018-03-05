@@ -4,19 +4,24 @@ name := "franz"
 
 version := "0.3.16"
 
-crossScalaVersions := Seq("2.10.4", "2.11.5")
+crossScalaVersions := Seq("2.10.4", "2.11.8")
 
-scalaVersion := "2.10.4"
+scalaVersion := "2.11.8"
 
 resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 
 resolvers += "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/"
 
-libraryDependencies += "com.amazonaws" % "aws-java-sdk-sqs" % "1.10.16"
+libraryDependencies += "com.amazonaws" % "aws-java-sdk-sqs" % "1.11.271"
 
-libraryDependencies += "com.typesafe.play" %% "play-json" % "2.3.7"
+libraryDependencies += "com.typesafe.play" %% "play-json" % "2.6.9"
 
-libraryDependencies += "com.typesafe.play" %% "play-iteratees" % "2.3.7"
+libraryDependencies += scalaVersion(playIterateesDependency(_)).value
+
+def playIterateesDependency(scalaVersion: String) = scalaVersion match {
+  case "2.10.4" => "com.typesafe.play" % "play-iteratees_2.10" % "2.4.11"
+  case _ => "com.typesafe.play" % "play-iteratees_2.11" % "2.6.1"
+}
 
 publishMavenStyle := true
 
